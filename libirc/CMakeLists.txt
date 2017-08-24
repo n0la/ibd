@@ -1,0 +1,35 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
+
+SET(IRC_LIBRARIES "irc"
+  CACHE STRING "library name for libirc")
+SET(IRC_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}"
+  CACHE STRING "include directory for libirc")
+MARK_AS_ADVANCED(IRC_LIBRARIES IRC_INCLUDE_DIRS)
+
+FIND_PACKAGE(Threads)
+
+SET(HEADERS
+  "irc/error.h"
+  "irc/irc.h"
+  "irc/message.h"
+  "irc/queue.h"
+  "irc/strbuf.h"
+  "irc/util.h"
+  )
+
+SET(SOURCES
+  "irc.c"
+  "message.c"
+  "strbuf.c"
+  "queue.c"
+  "util.c"
+  )
+
+ADD_DEFINITIONS("-Wall -Werror")
+
+INCLUDE_DIRECTORIES(${IRC_INCLUDE_DIRS})
+
+ADD_LIBRARY(${IRC_LIBRARIES} SHARED ${HEADERS} ${SOURCES})
+TARGET_LINK_LIBRARIES(${IRC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+ADD_SUBDIRECTORY(tests)
