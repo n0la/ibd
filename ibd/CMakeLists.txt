@@ -6,12 +6,15 @@ PKG_CHECK_MODULES(EVENT REQUIRED libevent)
 
 SET(FILES
   "ibd.c"
+  "include/ibd/log.h"
+  "log.c"
   )
 SET(TARGET "ibd")
 
 INCLUDE_DIRECTORIES(
   ${IRC_INCLUDE_DIRS}
   ${EVENT_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
 
 LINK_DIRECTORIES(${EVENT_LIBRARY_DIRS})

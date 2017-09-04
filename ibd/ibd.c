@@ -1,3 +1,4 @@
+#include <ibd/log.h>
 #include <irc/irc.h>
 
 #include <event2/event.h>
@@ -7,13 +8,13 @@
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <getopt.h>
 
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
 #include <unistd.h>
-
-#include <getopt.h>
+#include <syslog.h>
 
 static int sock = -1;
 static int done = 0;
@@ -53,11 +54,11 @@ static void event_callback(evutil_socket_t s, short what, void *unused)
         if (ret > 0) {
             irc_feed(i, buf, ret);
         } else if (ret < 0) {
-            fprintf(stderr, "error: reading: %s\n", strerror(errno));
+            log_error("reading: %s", strerror(errno));
             close(sock);
             sock = -1;
         } else if (ret == 0) {
-            fprintf(stderr, "error: disconnected: %s\n", strerror(errno));
+            log_error("disconnected: %s", strerror(errno));
             close(sock);
             sock = -1;
         }
@@ -73,11 +74,9 @@ static void event_callback(evutil_socket_t s, short what, void *unused)
             return;
         }
 
-        printf("<< %s", line);
-
         ret = write(s, line, linelen);
         if (ret < 0) {
-            fprintf(stderr, "error: writing: %s\n", strerror(errno));
+            log_error("writing: %s", strerror(errno));
             close(sock);
             sock = -1;
         }
@@ -96,8 +95,8 @@ static int ibd_connect(char const *host, char const *port)
     hint.ai_flags = AI_PASSIVE;
 
     if ((ret = getaddrinfo(host, port, &hint, &info))) {
-        fprintf(stderr, "error: failed to resolve host: %s\n",
-                gai_strerror(ret)
+        log_error("failed to resolve host: %s",
+                  gai_strerror(ret)
             );
         return -1;
     }
@@ -117,7 +116,7 @@ static int ibd_connect(char const *host, char const *port)
     }
 
     if (sock < 0) {
-        fprintf(stderr, "error: could not connect\n");
+        log_error("could not connect");
         return -1;
     }
 
@@ -126,7 +125,7 @@ static int ibd_connect(char const *host, char const *port)
 
 static void usage(void)
 {
-    puts("ibd -s server -p port -n nick");
+    puts("ibd -f -s server -p port -n nick");
 }
 
 int parse_args(int ac, char **av)
@@ -135,10 +134,11 @@ int parse_args(int ac, char **av)
         { "nick", required_argument, NULL, 'n' },
         { "port", required_argument, NULL, 'p' },
         { "server", required_argument, NULL, 's' },
+        { "foreground", no_argument, NULL, 'f' },
         { NULL, no_argument, NULL, 0 },
     };
 
-    static char const *optstr = "n:p:s:";
+    static char const *optstr = "fn:p:s:";
 
     int c = 0;
 
@@ -147,6 +147,7 @@ int parse_args(int ac, char **av)
         case 'n': free(nick); nick = strdup(optarg); break;
         case 'p': free(port); port = strdup(optarg); break;
         case 's': free(host); host = strdup(optarg); break;
+        case 'f': log_foreground(true); break;
         case '?':
         default:
         {
@@ -179,6 +180,8 @@ int main(int ac, char **av)
         return 1;
     }
 
+    openlog("ibd", 0, LOG_INFO);
+
     base = event_base_new();
     if (base == NULL) {
         return 3;
@@ -186,7 +189,7 @@ int main(int ac, char **av)
 
     i = irc_new();
     if (i == NULL) {
-        fprintf(stderr, "error: failed to allocate\n");
+        log_error("failed to allocate");
         return 3;
     }
 
