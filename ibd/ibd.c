@@ -176,14 +176,14 @@ int parse_args(int ac, char **av)
         default:
         {
             usage();
-            return 1;
+            return -1;
         } break;
         }
     }
 
     if (host == NULL) {
         fprintf(stderr, "error: no host specified\n");
-        return 1;
+        return -1;
     }
 
     return 0;
