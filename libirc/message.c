@@ -27,6 +27,15 @@ void irc_message_free(irc_message_t m)
     free(m);
 }
 
+static void irc_message_add(char ***ac, size_t *av, char *d)
+{
+    if (*d == ':') {
+        ++d;
+    }
+
+    irc_strv_add(ac, av, d);
+}
+
 irc_error_t irc_message_parse(irc_message_t c, char const *l, size_t len)
 {
     strbuf_t argbuf = NULL;
@@ -91,7 +100,7 @@ irc_error_t irc_message_parse(irc_message_t c, char const *l, size_t len)
                         goto cleanup;
                     }
 
-                    irc_strv_add(&args, &argslen, dup);
+                    irc_message_add(&args, &argslen, dup);
                 } else {
                     strbuf_append(argbuf, part, strlen(part));
                     strbuf_append(argbuf, " ", 1);
@@ -111,7 +120,7 @@ irc_error_t irc_message_parse(irc_message_t c, char const *l, size_t len)
         if (dup == NULL) {
             goto cleanup;
         }
-        irc_strv_add(&args, &argslen, dup);
+        irc_message_add(&args, &argslen, dup);
     }
 
     c->prefix = prefix;

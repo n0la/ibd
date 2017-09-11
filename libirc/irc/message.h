@@ -17,20 +17,20 @@ struct irc_message_
 
 typedef struct irc_message_ *irc_message_t;
 
-extern irc_message_t irc_message_new(void);
-extern void irc_message_free(irc_message_t m);
+irc_message_t irc_message_new(void);
+void irc_message_free(irc_message_t m);
 
-extern irc_error_t irc_message_parse(irc_message_t m,
+irc_error_t irc_message_parse(irc_message_t m,
                                      char const *line,
                                      size_t lensize);
 
-extern irc_message_t irc_message_make(char const *prefix,
+irc_message_t irc_message_make(char const *prefix,
                                       char const *command, ...);
 
-extern irc_message_t irc_message_makev(char const *prefix,
+irc_message_t irc_message_makev(char const *prefix,
                                        char const *command,
                                        va_list lst);
 
-extern irc_error_t irc_message_string(irc_message_t m, char **s, size_t *slen);
+irc_error_t irc_message_string(irc_message_t m, char **s, size_t *slen);
 
 #endif
