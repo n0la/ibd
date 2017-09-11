@@ -92,6 +92,8 @@ static void event_callback(evutil_socket_t s, short what, void *unused)
             return;
         }
 
+        printf("<< %s", line);
+
         if (!ssl) {
             ret = write(s, line, linelen);
         } else {
