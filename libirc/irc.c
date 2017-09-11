@@ -105,6 +105,39 @@ void irc_free(irc_t i)
     free(i);
 }
 
+irc_error_t irc_setopt(irc_t i, ircopt_t o, ...)
+{
+    va_list lst;
+    irc_error_t e = irc_error_success;
+
+    va_start(lst, o);
+    switch (o) {
+    case ircopt_nick:
+    {
+        free(i->nick);
+        i->nick = strdup(va_arg(lst, char*));
+    } break;
+
+    case ircopt_server:
+    {
+        free(i->server);
+        i->server = strdup(va_arg(lst, char*));
+    } break;
+
+    case ircopt_realname:
+    {
+        free(i->realname);
+        i->realname = strdup(va_arg(lst, char*));
+    } break;
+
+    default: e = irc_error_argument; break;
+
+    }
+    va_end(lst);
+
+    return e;
+}
+
 irc_error_t irc_feed(irc_t i, char const *buffer, size_t len)
 {
     ssize_t ret = 0;
@@ -244,48 +277,6 @@ irc_error_t irc_queue_command(irc_t i, char const *command, ...)
     pthread_mutex_unlock(&i->sendqmtx);
 
     return r;
-}
-
-irc_error_t irc_server(irc_t i, char const *name)
-{
-    return_if_true(i == NULL, irc_error_argument);
-    return_if_true(name == NULL, irc_error_argument);
-
-    free(i->server);
-    i->server = strdup(name);
-
-    return irc_error_success;
-}
-
-irc_error_t irc_realname(irc_t i, char const *name)
-{
-    return_if_true(i == NULL, irc_error_argument);
-    return_if_true(name == NULL, irc_error_argument);
-
-    free(i->realname);
-    i->realname = strdup(name);
-
-    return irc_error_success;
-}
-
-irc_error_t irc_nick(irc_t i, char const *nick)
-{
-    irc_error_t r = 0;
-
-    return_if_true(i == NULL, irc_error_argument);
-    return_if_true(nick == NULL, irc_error_argument);
-
-    if (i->nick) {
-        r = irc_queue_command(i, "NICK", nick, NULL);
-        if (IRC_FAILED(r)) {
-            return r;
-        }
-    }
-
-    free(i->nick);
-    i->nick = strdup(nick);
-
-    return irc_error_success;
 }
 
 irc_error_t irc_handler_add(irc_t i, char const *cmd,

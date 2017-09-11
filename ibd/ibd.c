@@ -193,9 +193,9 @@ int main(int ac, char **av)
         return 3;
     }
 
-    irc_nick(i, nick);
-    irc_realname(i, nick);
-    irc_server(i, host);
+    irc_setopt(i, ircopt_nick, nick);
+    irc_setopt(i, ircopt_realname, nick);
+    irc_setopt(i, ircopt_server, host);
 
     irc_handler_add(i, NULL, on_command, NULL);
 
