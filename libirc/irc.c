@@ -42,6 +42,8 @@ struct irc_
 
     pthread_mutex_t sendqmtx;
     irc_queue_t sendq;
+
+    irc_queue_t channels;
 };
 
 static void irc_ping_handler(irc_t i, irc_message_t m, void *unused)
@@ -49,6 +51,18 @@ static void irc_ping_handler(irc_t i, irc_message_t m, void *unused)
     /* queue pong
      */
     irc_queue_command(i, "PONG", NULL);
+}
+
+static void irc_invite_handler(irc_t i, irc_message_t m, void *unused)
+{
+    char *channel = NULL;
+
+    if (m->args == NULL || m->argslen == 0) {
+        return;
+    }
+
+    channel = m->args[0];
+    irc_join(i, channel);
 }
 
 irc_t irc_new(void)
@@ -69,8 +83,13 @@ irc_t irc_new(void)
 
     i->sendq = irc_queue_new();
     if (i->sendq == NULL) {
-        strbuf_free(i->buf);
-        free(i);
+        irc_free(i);
+        return NULL;
+    }
+
+    i->channels = irc_queue_new();
+    if (i->channels == NULL) {
+        irc_free(i);
         return NULL;
     }
 
@@ -85,6 +104,7 @@ irc_t irc_new(void)
     pthread_mutex_init(&i->sendqmtx, NULL);
 
     irc_handler_add(i, "PING", irc_ping_handler, NULL);
+    irc_handler_add(i, "INVITE", irc_invite_handler, NULL);
 
     return i;
 }
@@ -101,6 +121,12 @@ void irc_free(irc_t i)
     free(i->nick);
     free(i->realname);
     free(i->server);
+
+    irc_queue_free(i->channels);
+
+    pthread_mutex_lock(&i->sendqmtx);
+    pthread_mutex_destroy(&i->sendqmtx);
+    irc_queue_free(i->sendq);
 
     free(i);
 }
@@ -330,6 +356,25 @@ irc_error_t irc_connected(irc_t i)
     return_if_true(i == NULL, irc_error_argument);
 
     i->state = irc_state_connected;
+
+    return irc_error_success;
+}
+
+irc_error_t irc_join(irc_t i, char const *channel)
+{
+    char *chan = NULL;
+    irc_error_t e;
+
+    return_if_true(i == NULL, irc_error_argument);
+    return_if_true(channel == NULL, irc_error_argument);
+
+    e = irc_queue_command(i, "JOIN", channel, NULL);
+    if (IRC_FAILED(e)) {
+        return e;
+    }
+
+    chan = strdup(channel);
+    irc_queue_push(i->channels, chan);
 
     return irc_error_success;
 }

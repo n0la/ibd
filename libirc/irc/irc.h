@@ -41,4 +41,6 @@ irc_error_t irc_handler_add(irc_t i, char const *cmd,
 
 irc_error_t irc_pop(irc_t i, char **message, size_t *len);
 
+irc_error_t irc_join(irc_t i, char const *channel);
+
 #endif
