@@ -3,6 +3,8 @@
 
 #include <event2/event.h>
 
+#include <tls.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -16,6 +18,9 @@
 #include <unistd.h>
 #include <syslog.h>
 
+static struct tls *ctx = NULL;
+static struct tls_config *tconfig = NULL;
+
 static int sock = -1;
 static int done = 0;
 static irc_t i = NULL;
@@ -23,6 +28,7 @@ static irc_t i = NULL;
 static char *host = NULL;
 static char *port = NULL;
 static char *nick = NULL;
+static bool ssl = false;
 
 void on_command(irc_t irc, irc_message_t m, void *unused)
 {
@@ -43,6 +49,16 @@ void on_command(irc_t irc, irc_message_t m, void *unused)
     printf("\n");
 }
 
+static void ibd_disconnect(void)
+{
+    close(sock);
+    sock = -1;
+
+    tls_close(ctx);
+    tls_free(ctx);
+    ctx = NULL;
+}
+
 static void event_callback(evutil_socket_t s, short what, void *unused)
 {
     int ret = 0;
@@ -50,17 +66,19 @@ static void event_callback(evutil_socket_t s, short what, void *unused)
     if ((what & EV_READ) == EV_READ) {
         char buf[100] = {0};
 
-        ret = read(s, buf, sizeof(buf));
+        if (!ssl) {
+            ret = read(s, buf, sizeof(buf));
+        } else {
+            ret = tls_read(ctx, buf, sizeof(buf));
+        }
         if (ret > 0) {
             irc_feed(i, buf, ret);
         } else if (ret < 0) {
             log_error("reading: %s", strerror(errno));
-            close(sock);
-            sock = -1;
+            ibd_disconnect();
         } else if (ret == 0) {
             log_error("disconnected: %s", strerror(errno));
-            close(sock);
-            sock = -1;
+            ibd_disconnect();
         }
     }
 
@@ -74,7 +92,11 @@ static void event_callback(evutil_socket_t s, short what, void *unused)
             return;
         }
 
-        ret = write(s, line, linelen);
+        if (!ssl) {
+            ret = write(s, line, linelen);
+        } else {
+            ret = tls_write(ctx, line, linelen);
+        }
         if (ret < 0) {
             log_error("writing: %s", strerror(errno));
             close(sock);
@@ -125,7 +147,7 @@ static int ibd_connect(char const *host, char const *port)
 
 static void usage(void)
 {
-    puts("ibd -f -s server -p port -n nick");
+    puts("ibd -f -h host -p port -n nick -s");
 }
 
 int parse_args(int ac, char **av)
@@ -133,12 +155,13 @@ int parse_args(int ac, char **av)
     static struct option opts[] = {
         { "nick", required_argument, NULL, 'n' },
         { "port", required_argument, NULL, 'p' },
-        { "server", required_argument, NULL, 's' },
+        { "host", required_argument, NULL, 'h' },
         { "foreground", no_argument, NULL, 'f' },
+        { "ssl", no_argument, NULL, 's' },
         { NULL, no_argument, NULL, 0 },
     };
 
-    static char const *optstr = "fn:p:s:";
+    static char const *optstr = "fn:p:h:s";
 
     int c = 0;
 
@@ -146,7 +169,8 @@ int parse_args(int ac, char **av)
         switch (c) {
         case 'n': free(nick); nick = strdup(optarg); break;
         case 'p': free(port); port = strdup(optarg); break;
-        case 's': free(host); host = strdup(optarg); break;
+        case 'h': free(host); host = strdup(optarg); break;
+        case 's': ssl = true; break;
         case 'f': log_foreground(true); break;
         case '?':
         default:
@@ -171,6 +195,8 @@ int main(int ac, char **av)
     struct event *ev = NULL;
     int ret = 0;
 
+    tls_init();
+
     /* sane default values
      */
     nick = strdup("ibd");
@@ -181,6 +207,14 @@ int main(int ac, char **av)
     }
 
     openlog("ibd", 0, LOG_INFO);
+
+    if (ssl) {
+        tconfig = tls_config_new();
+        if (tconfig == NULL) {
+            log_error("tls_config_new failed");
+            return 3;
+        }
+    }
 
     base = event_base_new();
     if (base == NULL) {
@@ -201,6 +235,23 @@ int main(int ac, char **av)
 
     while (!done) {
         sock = ibd_connect(host, port);
+
+        if (ssl) {
+            if (ctx == NULL) {
+                ctx = tls_client();
+                if (ctx == NULL) {
+                    log_error("tls_client failed");
+                    return 3;
+                }
+                tls_configure(ctx, tconfig);
+            }
+
+            if (tls_connect_socket(ctx, sock, host) < 0) {
+                log_error("tls_connect_socket");
+                ibd_disconnect();
+            }
+        }
+
         if (sock < 0) {
             sleep(2);
             continue;
