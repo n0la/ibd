@@ -27,13 +27,16 @@ void irc_message_free(irc_message_t m)
     free(m);
 }
 
-static void irc_message_add(char ***ac, size_t *av, char *d)
+static void irc_message_add(char ***ac, size_t *av, strbuf_t b)
 {
-    if (*d == ':') {
-        ++d;
+    char *dup = NULL;
+
+    if (strbuf_getc(b) == ':') {
+        strbuf_delete(b, 1);
     }
 
-    irc_strv_add(ac, av, d);
+    dup = strbuf_strdup(b);
+    irc_strv_add(ac, av, dup);
 }
 
 irc_error_t irc_message_parse(irc_message_t c, char const *l, size_t len)
@@ -77,12 +80,7 @@ irc_error_t irc_message_parse(irc_message_t c, char const *l, size_t len)
         {
             if (*part == ':') {
                 if (argbuf) {
-                    char *dup = strbuf_strdup(argbuf);
-                    if (dup == NULL) {
-                        goto cleanup;
-                    }
-
-                    irc_strv_add(&args, &argslen, dup);
+                    irc_message_add(&args, &argslen, argbuf);
                     strbuf_free(argbuf);
                     argbuf = NULL;
                 }
@@ -92,18 +90,12 @@ irc_error_t irc_message_parse(irc_message_t c, char const *l, size_t len)
                     goto cleanup;
                 }
                 strbuf_append(argbuf, part, strlen(part));
-                strbuf_append(argbuf, " ", 1);
             } else {
                 if (argbuf == NULL) {
-                    char *dup = strdup(part);
-                    if (dup == NULL) {
-                        goto cleanup;
-                    }
-
-                    irc_message_add(&args, &argslen, dup);
+                    irc_message_add(&args, &argslen, argbuf);
                 } else {
-                    strbuf_append(argbuf, part, strlen(part));
                     strbuf_append(argbuf, " ", 1);
+                    strbuf_append(argbuf, part, strlen(part));
                 }
             }
 
@@ -116,11 +108,7 @@ irc_error_t irc_message_parse(irc_message_t c, char const *l, size_t len)
     /* Check if their is remaining argument
      */
     if (argbuf) {
-        char *dup = strbuf_strdup(argbuf);
-        if (dup == NULL) {
-            goto cleanup;
-        }
-        irc_message_add(&args, &argslen, dup);
+        irc_message_add(&args, &argslen, argbuf);
     }
 
     c->prefix = prefix;
@@ -212,7 +200,7 @@ irc_error_t irc_message_string(irc_message_t m, char **s, size_t *slen)
             size_t tmplen = strlen(*tmp);
             /* if we find a space we add a `:`
              */
-            if (memchr(*tmp, ' ', tmplen) != NULL) {
+            if (strchr(*tmp, ' ') != NULL) {
                 strbuf_append(buf, ":", 1);
             }
             strbuf_append(buf, *tmp, tmplen);

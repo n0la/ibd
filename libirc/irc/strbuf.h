@@ -18,6 +18,9 @@ ssize_t strbuf_getstr(strbuf_t b, char **line, size_t *linesize,
                       char const *small);
 char *strbuf_strdup(strbuf_t b);
 
+int strbuf_getc(strbuf_t b);
+int strbuf_delete(strbuf_t b, int how);
+
 size_t strbuf_len(strbuf_t b);
 
 #endif

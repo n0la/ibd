@@ -158,3 +158,25 @@ size_t strbuf_len(strbuf_t b)
 
     return b->end;
 }
+
+int strbuf_getc(strbuf_t b)
+{
+    if (b == NULL || b->end <= 0) {
+        return -1;
+    }
+
+    return *b->buf;
+}
+
+int strbuf_delete(strbuf_t b, int how)
+{
+    if (b == NULL || how > b->end) {
+        return -1;
+    }
+
+    b->end -= how;
+    memmove(b->buf, b->buf+how, b->end);
+    memset(b->buf + b->end, 0, b->bufsize - b->end);
+
+    return 0;
+}
