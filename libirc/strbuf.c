@@ -84,7 +84,9 @@ ssize_t strbuf_getdelim(strbuf_t b, char **line, size_t *linesize, int delim)
 
     pos = memchr(b->buf, delim, b->end);
     if (pos == NULL) {
-        return -1;
+        /* not found, so entire string
+         */
+        pos = b->buf + b->end - 1;
     }
 
     diff = (ssize_t)(pos - b->buf) + 1;

@@ -1,4 +1,5 @@
 #include <ibd/log.h>
+#include <ibd/yamlconfig.h>
 #include <irc/irc.h>
 
 #include <event2/event.h>
@@ -28,6 +29,8 @@ static irc_t i = NULL;
 static char *host = NULL;
 static char *port = NULL;
 static char *nick = NULL;
+static char *configfile = NULL;
+static yaml_config_t config = NULL;
 static bool ssl = false;
 
 void on_command(irc_t irc, irc_message_t m, void *unused)
@@ -152,10 +155,45 @@ static void usage(void)
     puts("ibd -f -h host -p port -n nick -s");
 }
 
+static int load_config_file(void)
+{
+    if (!configfile) {
+        return -1;
+    }
+
+    config = yaml_config_new();
+    if (config == NULL) {
+        return -1;
+    }
+
+    if (!yaml_config_load(config, configfile)) {
+        log_error("failure to load config file: %s", strerror(errno));
+        return -1;
+    }
+
+    free(host);
+    host = NULL;
+    yaml_config_string(config, "host", &host, NULL);
+
+    free(port);
+    port = NULL;
+    yaml_config_string(config, "port", &port, NULL);
+
+    free(nick);
+    nick = NULL;
+    yaml_config_string(config, "nick", &nick, NULL);
+
+    ssl = false;
+    yaml_config_bool(config, "ssl", &ssl, false);
+
+    return 0;
+}
+
 int parse_args(int ac, char **av)
 {
     static struct option opts[] = {
         { "nick", required_argument, NULL, 'n' },
+        { "config", required_argument, NULL, 'c' },
         { "port", required_argument, NULL, 'p' },
         { "host", required_argument, NULL, 'h' },
         { "foreground", no_argument, NULL, 'f' },
@@ -163,7 +201,7 @@ int parse_args(int ac, char **av)
         { NULL, no_argument, NULL, 0 },
     };
 
-    static char const *optstr = "fn:p:h:s";
+    static char const *optstr = "c:fn:p:h:s";
 
     int c = 0;
 
@@ -172,6 +210,7 @@ int parse_args(int ac, char **av)
         case 'n': free(nick); nick = strdup(optarg); break;
         case 'p': free(port); port = strdup(optarg); break;
         case 'h': free(host); host = strdup(optarg); break;
+        case 'c': free(configfile); configfile = strdup(optarg); break;
         case 's': ssl = true; break;
         case 'f': log_foreground(true); break;
         case '?':
@@ -183,9 +222,21 @@ int parse_args(int ac, char **av)
         }
     }
 
+    if (load_config_file()) {
+        return -1;
+    }
+
     if (host == NULL) {
         fprintf(stderr, "error: no host specified\n");
         return -1;
+    }
+
+    if (port == NULL) {
+        port = strdup("6667");
+    }
+
+    if (nick == NULL) {
+        nick = strdup("ibd");
     }
 
     return 0;
@@ -198,11 +249,6 @@ int main(int ac, char **av)
     int ret = 0;
 
     tls_init();
-
-    /* sane default values
-     */
-    nick = strdup("ibd");
-    port = strdup("6667");
 
     if (parse_args(ac, av) < 0) {
         return 1;
