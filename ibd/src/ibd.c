@@ -1,0 +1,120 @@
+#include <ibd/log.h>
+#include <ibd/config.h>
+
+#include <irc/irc.h>
+
+#include <event2/event.h>
+#include <tls.h>
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include <errno.h>
+#include <getopt.h>
+
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <syslog.h>
+
+static char *configfile = NULL;
+
+void on_command(irc_t irc, irc_message_t m, void *unused)
+{
+    int i = 0;
+
+    printf(">> [prefix = %s] [command = %s] ",
+           (m->prefix ? m->prefix : "N/A"),
+           (m->command ? m->command : "N/A")
+        );
+    if (m->args) {
+        for (i = 0; m->args[i] != NULL; i++) {
+            printf("[arg(%d) = %s]", i, m->args[i]);
+            if (m->args[i+1] != NULL) {
+                printf(" ");
+            }
+        }
+    }
+    printf("\n");
+}
+
+static void usage(void)
+{
+    puts("ibd -f -c config");
+}
+
+int parse_args(int ac, char **av)
+{
+    static struct option opts[] = {
+        { "config", required_argument, NULL, 'c' },
+        { "foreground", no_argument, NULL, 'f' },
+        { NULL, no_argument, NULL, 0 },
+    };
+
+    static char const *optstr = "c:f";
+
+    int c = 0;
+
+    while ((c = getopt_long(ac, av, optstr, opts, NULL)) != -1) {
+        switch (c) {
+        case 'c': free(configfile); configfile = strdup(optarg); break;
+        case 'f': log_foreground(true); break;
+        case '?':
+        default:
+        {
+            usage();
+            return -1;
+        } break;
+        }
+    }
+
+    return 0;
+}
+
+int main(int ac, char **av)
+{
+    struct event_base *base = NULL;
+    bool done = false;
+    int i = 0;
+    int ret = 0;
+
+    tls_init();
+
+    if (parse_args(ac, av) < 0) {
+        return 1;
+    }
+
+    if (configfile) {
+        if (config_parse(configfile)) {
+            return 3;
+        }
+    }
+
+    openlog("ibd", 0, LOG_INFO);
+
+    base = event_base_new();
+    if (base == NULL) {
+        return 3;
+    }
+
+    while (!done) {
+        for (i = 0; i < config.networklen; i++) {
+            network_t *n = config.network[i];
+
+            if (network_connect(n, base)) {
+                continue;
+            }
+
+            irc_think(n->irc);
+        }
+
+        ret = event_base_loop(base, EVLOOP_ONCE | EVLOOP_NONBLOCK);
+        if (ret < 0) {
+            break;
+        }
+    }
+
+    return 0;
+}
