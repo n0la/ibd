@@ -4,7 +4,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <signal.h>
 
+#include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
@@ -87,14 +89,16 @@ error_t network_set(network_t *n, char const *k, char const *v)
 
 error_t network_disconnect(network_t *n)
 {
-    close(n->fd);
-    n->fd = -1;
+    int i = 0, status = 0;
 
     if (n->ev) {
         event_del(n->ev);
         event_free(n->ev);
         n->ev = NULL;
     }
+
+    close(n->fd);
+    n->fd = -1;
 
     if (n->tls) {
         tls_close(n->tls);
@@ -104,6 +108,12 @@ error_t network_disconnect(network_t *n)
 
     /* TODO: kill children
      */
+    for (i = 0; i < n->pluginlen; i++) {
+        plugin_info_t *p = n->plugin[i];
+
+        kill(p->pid, SIGTERM);
+        waitpid(p->pid, &status, 0);
+    }
 
     strbuf_reset(n->plugin_buf);
 
@@ -154,7 +164,8 @@ error_t network_read(network_t *n)
 
     if (ret > 0) {
         irc_feed(n->irc, buf, ret);
-    } else if (ret < 0 || ret == 0) {
+        event_add(n->ev, NULL);
+    } else if (ret <= 0) {
         log_error("reading: %s\n", strerror(errno));
         network_disconnect(n);
     }
@@ -188,9 +199,11 @@ error_t network_write(network_t *n)
         }
     }
 
-    if (ret < 0) {
+    if (ret <= 0) {
         log_error("writing: %s\n", strerror(errno));
         network_disconnect(n);
+    } else if (ret > 0) {
+        event_add(n->ev, NULL);
     }
 
     free(line);
@@ -202,12 +215,17 @@ static void network_callback(evutil_socket_t s, short what, void *arg)
 {
     network_t *n = (network_t*)arg;
 
-    if ((what & EV_READ) == EV_READ) {
-        network_read(n);
+    if (n->fd == -1) {
+        log_error("fd was -1\n");
+        return;
     }
 
-    if ((what & EV_WRITE) == EV_WRITE) {
+    if ((what & EV_READ) == EV_READ) {
+        network_read(n);
+    } else if ((what & EV_WRITE) == EV_WRITE) {
         network_write(n);
+    } else {
+        event_add(n->ev, NULL);
     }
 }
 
@@ -366,7 +384,7 @@ error_t network_connect(network_t *n, struct event_base *base)
         }
     }
 
-    n->ev = event_new(base, n->fd, EV_PERSIST|EV_READ|EV_WRITE,
+    n->ev = event_new(base, n->fd, EV_READ|EV_WRITE,
                       network_callback, n
         );
     event_add(n->ev, NULL);
