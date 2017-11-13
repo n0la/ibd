@@ -21,25 +21,6 @@
 
 static char *configfile = NULL;
 
-void on_command(irc_t irc, irc_message_t m, void *unused)
-{
-    int i = 0;
-
-    printf(">> [prefix = %s] [command = %s] ",
-           (m->prefix ? m->prefix : "N/A"),
-           (m->command ? m->command : "N/A")
-        );
-    if (m->args) {
-        for (i = 0; m->args[i] != NULL; i++) {
-            printf("[arg(%d) = %s]", i, m->args[i]);
-            if (m->args[i+1] != NULL) {
-                printf(" ");
-            }
-        }
-    }
-    printf("\n");
-}
-
 static void usage(void)
 {
     puts("ibd -c config -f");
@@ -114,6 +95,8 @@ int main(int ac, char **av)
         if (ret < 0) {
             break;
         }
+
+        usleep(10 * 1000);
     }
 
     return 0;
