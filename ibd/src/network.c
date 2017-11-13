@@ -376,14 +376,21 @@ error_t network_connect(network_t *n, struct event_base *base)
     if (n->ssl) {
         n->tls = tls_client();
         if (n->tls == NULL) {
-            network_disconnect(n);
             log_error("failed to alloc tls_client\n");
+            network_disconnect(n);
             return error_memory;
         }
 
         tls_configure(n->tls, n->tls_config);
+
         if (tls_connect_socket(n->tls, n->fd, n->host) < 0) {
-            log_error("failed to connect via TLS\n");
+            log_error("failed to connect via TLS: %s\n", tls_error(n->tls));
+            network_disconnect(n);
+            return error_tls;
+        }
+
+        if (tls_handshake(n->tls) < 0) {
+            log_error("failed to make TLS handshake: %s\n", tls_error(n->tls));
             network_disconnect(n);
             return error_tls;
         }
