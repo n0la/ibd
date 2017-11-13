@@ -93,10 +93,11 @@ int main(int ac, char **av)
 
         ret = event_base_loop(base, EVLOOP_ONCE | EVLOOP_NONBLOCK);
         if (ret < 0) {
+            log_error("failed to dispatch events\n");
             break;
+        } else if (ret > 1) {
+            usleep(10 * 1000);
         }
-
-        usleep(10 * 1000);
     }
 
     return 0;
