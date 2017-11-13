@@ -179,7 +179,7 @@ irc_error_t irc_message_string(irc_message_t m, char **s, size_t *slen)
         return irc_error_argument;
     }
 
-    if (m->prefix == NULL || m->command == NULL) {
+    if (m->command == NULL) {
         return irc_error_protocol;
     }
 
@@ -188,9 +188,11 @@ irc_error_t irc_message_string(irc_message_t m, char **s, size_t *slen)
         return irc_error_memory;
     }
 
-    strbuf_append(buf, ":", 1);
-    strbuf_append(buf, m->prefix, strlen(m->prefix));
-    strbuf_append(buf, " ", 1);
+    if (m->prefix) {
+        strbuf_append(buf, ":", 1);
+        strbuf_append(buf, m->prefix, strlen(m->prefix));
+        strbuf_append(buf, " ", 1);
+    }
 
     strbuf_append(buf, m->command, strlen(m->command));
     strbuf_append(buf, " ", 1);
