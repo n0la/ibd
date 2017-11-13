@@ -18,8 +18,24 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <signal.h>
 
 static char *configfile = NULL;
+
+static void cleanup(void)
+{
+    int i = 0;
+
+    for (i = 0; i < config.networklen; i++) {
+        network_t *n = config.network[i];
+        network_disconnect(n);
+    }
+}
+
+static void sig(int signal)
+{
+    exit(1);
+}
 
 static void usage(void)
 {
@@ -60,6 +76,11 @@ int main(int ac, char **av)
     bool done = false;
     int i = 0;
     int ret = 0;
+
+    atexit(cleanup);
+
+    signal(SIGTERM, sig);
+    signal(SIGINT, sig);
 
     tls_init();
 

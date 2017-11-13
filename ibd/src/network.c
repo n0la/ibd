@@ -107,13 +107,13 @@ error_t network_disconnect(network_t *n)
         n->tls = NULL;
     }
 
-    /* TODO: kill children
-     */
     for (i = 0; i < n->pluginlen; i++) {
         plugin_info_t *p = n->plugin[i];
-
-        kill(p->pid, SIGTERM);
-        waitpid(p->pid, &status, 0);
+        if (p->pid >= 0) {
+            kill(p->pid, SIGTERM);
+            waitpid(p->pid, &status, 0);
+            p->pid = -1;
+        }
     }
 
     strbuf_reset(n->plugin_buf);

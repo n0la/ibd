@@ -50,6 +50,7 @@ typedef struct {
 network_t * network_new(void);
 error_t network_set(network_t *n, char const *k, char const *v);
 
+error_t network_disconnect(network_t *n);
 error_t network_connect(network_t *n, struct event_base *base);
 
 error_t network_add_plugin(network_t *n, plugin_info_t *p);
