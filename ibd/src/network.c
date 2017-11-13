@@ -363,7 +363,7 @@ error_t network_connect(network_t *n, struct event_base *base)
     }
 
     if (sock < 0) {
-        log_error("could not connect\n");
+        log_error("could not connect to %s\n", n->host);
         return error_internal;
     } else {
         char buf[100] = {0};
