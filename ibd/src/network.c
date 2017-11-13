@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 
 static void network_handler(irc_t i, irc_message_t m, void *arg);
@@ -348,7 +349,7 @@ error_t network_connect(network_t *n, struct event_base *base)
     }
 
     for (ai = info; ai != NULL; ai = ai->ai_next) {
-        sock = socket(AF_INET, SOCK_STREAM, 0);
+        sock = socket(ai->ai_family, SOCK_STREAM, 0);
         if (sock == -1) {
             continue;
         }
@@ -362,9 +363,13 @@ error_t network_connect(network_t *n, struct event_base *base)
     }
 
     if (sock < 0) {
-        log_error("could not connect");
+        log_error("could not connect\n");
         return error_internal;
     } else {
+        char buf[100] = {0};
+        inet_ntop(ai->ai_family, ai->ai_addr, buf, sizeof(buf)-1);
+        log_debug("connected to %s:%s\n", buf, n->port);
+
         n->fd = sock;
     }
 
