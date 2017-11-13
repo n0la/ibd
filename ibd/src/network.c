@@ -72,7 +72,7 @@ error_t network_set(network_t *n, char const *k, char const *v)
         free(n->port);
         n->port = strdup(v);
     } else if (strcmp(k, "ssl") == 0) {
-        n->ssl = (strcmp(v, "yes") == 0);
+        n->ssl = (strcmp(v, "yes") == 0 || strcmp(v, "true") == 0);
         r = network_alloc_ssl(n);
         if (r) {
             return r;
@@ -165,7 +165,6 @@ error_t network_read(network_t *n)
 
     if (ret > 0) {
         irc_feed(n->irc, buf, ret);
-        event_add(n->ev, NULL);
     } else if (ret <= 0) {
         log_error("reading: %s\n", strerror(errno));
         network_disconnect(n);
@@ -203,8 +202,6 @@ error_t network_write(network_t *n)
     if (ret <= 0) {
         log_error("writing: %s\n", strerror(errno));
         network_disconnect(n);
-    } else if (ret > 0) {
-        event_add(n->ev, NULL);
     }
 
     free(line);
@@ -225,8 +222,6 @@ static void network_callback(evutil_socket_t s, short what, void *arg)
         network_read(n);
     } else if ((what & EV_WRITE) == EV_WRITE) {
         network_write(n);
-    } else {
-        event_add(n->ev, NULL);
     }
 }
 
@@ -363,7 +358,7 @@ error_t network_connect(network_t *n, struct event_base *base)
     }
 
     if (sock < 0) {
-        log_error("could not connect to %s\n", n->host);
+        log_error("could not connect to %s:%s\n", n->host, n->port);
         return error_internal;
     } else {
         char buf[100] = {0};
@@ -396,7 +391,7 @@ error_t network_connect(network_t *n, struct event_base *base)
         }
     }
 
-    n->ev = event_new(base, n->fd, EV_READ|EV_WRITE,
+    n->ev = event_new(base, n->fd, EV_PERSIST | EV_READ | EV_WRITE,
                       network_callback, n
         );
     event_add(n->ev, NULL);
