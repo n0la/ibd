@@ -155,7 +155,7 @@ error_t network_read(network_t *n)
     if (ret > 0) {
         irc_feed(n->irc, buf, ret);
     } else if (ret < 0 || ret == 0) {
-        log_error("reading: %s", strerror(errno));
+        log_error("reading: %s\n", strerror(errno));
         network_disconnect(n);
     }
 
@@ -189,7 +189,7 @@ error_t network_write(network_t *n)
     }
 
     if (ret < 0) {
-        log_error("writing: %s", strerror(errno));
+        log_error("writing: %s\n", strerror(errno));
         network_disconnect(n);
     }
 
