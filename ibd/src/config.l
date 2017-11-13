@@ -10,6 +10,10 @@
 %%
 
 network return TOK_NETWORK;
+plugin return TOK_PLUGIN;
+filename return TOK_FILENAME;
+option return TOK_OPTION;
+args return TOK_ARGS;
 
 \{ return TOK_PAR_OPEN;
 \} return TOK_PAR_CLOSE;

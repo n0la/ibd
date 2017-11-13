@@ -19,14 +19,12 @@ SET(SOURCES
   "src/log.c"
   "src/config.c"
   "src/network.c"
-  "src/echo.c"
   )
 
 SET(HEADERS
   "include/ibd/network.h"
   "include/ibd/config.h"
   "include/ibd/log.h"
-  "include/ibd/plugin.h"
   )
 
 SET(TARGET "ibd")

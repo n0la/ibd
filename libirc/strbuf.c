@@ -33,6 +33,18 @@ void strbuf_free(strbuf_t b)
     free(b);
 }
 
+void strbuf_reset(strbuf_t b)
+{
+    if (b == NULL) {
+        return;
+    }
+
+    free(b->buf);
+    b->buf = NULL;
+
+    b->end = b->bufsize = 0;
+}
+
 ssize_t strbuf_append(strbuf_t b, char const *buffer, ssize_t len)
 {
     if (b == NULL || buffer == NULL) {

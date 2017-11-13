@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#define IRC_PROTOCOL_DELIMITER "\r\n"
+
 struct irc_message_
 {
     char *prefix;
@@ -21,15 +23,15 @@ irc_message_t irc_message_new(void);
 void irc_message_free(irc_message_t m);
 
 irc_error_t irc_message_parse(irc_message_t m,
-                                     char const *line,
-                                     size_t lensize);
+                              char const *line,
+                              size_t lensize);
 
 irc_message_t irc_message_make(char const *prefix,
-                                      char const *command, ...);
+                               char const *command, ...);
 
 irc_message_t irc_message_makev(char const *prefix,
-                                       char const *command,
-                                       va_list lst);
+                                char const *command,
+                                va_list lst);
 
 irc_error_t irc_message_string(irc_message_t m, char **s, size_t *slen);
 

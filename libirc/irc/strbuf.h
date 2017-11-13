@@ -21,6 +21,8 @@ char *strbuf_strdup(strbuf_t b);
 int strbuf_getc(strbuf_t b);
 int strbuf_delete(strbuf_t b, int how);
 
+void strbuf_reset(strbuf_t b);
+
 size_t strbuf_len(strbuf_t b);
 
 #endif

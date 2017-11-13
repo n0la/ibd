@@ -2,11 +2,14 @@
 #include <ibd/log.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <errno.h>
 
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
+
+static void network_handler(irc_t i, irc_message_t m, void *arg);
 
 network_t * network_new(void)
 {
@@ -20,6 +23,15 @@ network_t * network_new(void)
 
     i->irc = irc_new();
     if (i->irc == NULL) {
+        free(i);
+        return NULL;
+    }
+
+    irc_handler_add(i->irc, NULL, network_handler, i);
+
+    i->plugin_buf = strbuf_new();
+    if (i->plugin_buf == NULL) {
+        irc_free(i->irc);
         free(i);
         return NULL;
     }
@@ -90,7 +102,40 @@ error_t network_disconnect(network_t *n)
         n->tls = NULL;
     }
 
+    /* TODO: kill children
+     */
+
+    strbuf_reset(n->plugin_buf);
+
     return error_success;
+}
+
+static void network_handler(irc_t irc, irc_message_t m, void *arg)
+{
+    network_t *n = (network_t*)arg;
+    char *line = NULL;
+    size_t linelen = 0;
+    size_t i = 0;
+    int ret = 0;
+
+    if (IRC_FAILED(irc_message_string(m, &line, &linelen))) {
+        log_error("failed to parse incoming line\n");
+        return;
+    }
+
+    if (linelen > 2) {
+        line[linelen-2] = '\n';
+        line[linelen-1] = '\0';
+    }
+
+    for (; i < n->pluginlen; i++) {
+        plugin_info_t *p = n->plugin[i];
+
+        ret = write(p->in, line, linelen);
+        if (ret <= 0) {
+            log_error("failed to write to child: %s\n", strerror(errno));
+        }
+    }
 }
 
 error_t network_read(network_t *n)
@@ -126,7 +171,12 @@ error_t network_write(network_t *n)
 
     r = irc_pop(n->irc, &line, &linelen);
     if (IRC_FAILED(r)) {
-        return error_success;
+        /* check plugins
+         */
+        ret = strbuf_getline(n->plugin_buf, &line, &linelen);
+        if (ret <= 0) {
+            return error_success;
+        }
     }
 
     if (!n->ssl) {
@@ -161,6 +211,101 @@ static void network_callback(evutil_socket_t s, short what, void *arg)
     }
 }
 
+static void plugin_callback(evutil_socket_t s, short what, void *arg)
+{
+    network_t *n = (network_t*)arg;
+    char buffer[100] = {0};
+
+    if ((what & EV_READ) == EV_READ) {
+        int ret = 0;
+
+        ret = read(s, buffer, sizeof(buffer));
+        if (ret > 0) {
+            printf("%s\n", buffer);
+            strbuf_append(n->plugin_buf, buffer, ret);
+        }
+    }
+}
+
+static int child_main(plugin_info_t *p, int in[2], int out[2])
+{
+    p->in = in[0];
+    p->out = out[1];
+
+    close(in[1]);
+    close(out[0]);
+
+    /* Preare stdin and stdout
+     */
+    dup2(p->in, STDIN_FILENO);
+    dup2(p->out, STDOUT_FILENO);
+
+    if (p->argv == NULL) {
+        p->argv = calloc(2, sizeof(char*));
+        if (p->argv == NULL) {
+            log_error("memory exhaustion");
+            return error_memory;
+        }
+        p->argc = 2;
+    }
+
+    p->argv[0] = p->filename;
+
+    if (execv(p->filename, p->argv) < 0) {
+        log_error("failed to execute: %s: %s\n", p->filename, strerror(errno));
+        return 3;
+    }
+
+    return 0;
+}
+
+static error_t network_run(network_t *n)
+{
+    size_t i = 0;
+    int in[2];
+    int out[2];
+
+    for (; i < n->pluginlen; i++) {
+        plugin_info_t *p = n->plugin[i];
+
+        if (pipe2(in, O_CLOEXEC) < 0) {
+            log_error("failed to create pipe for children: %s\n",
+                      strerror(errno));
+            continue;
+        }
+
+        if (pipe2(out, O_CLOEXEC) < 0) {
+            close(in[0]);
+            close(in[1]);
+            log_error("failed to create pipe for children: %s\n",
+                      strerror(errno));
+            continue;
+        }
+
+        log_debug("forking plugin: %s: %s\n", p->name, p->filename);
+
+        p->pid = fork();
+        if (p->pid > 0) {
+            p->in = in[1];
+            p->out = out[0];
+
+            close(in[0]);
+            close(out[1]);
+
+            p->in_ev = event_new(n->base, p->in, EV_PERSIST|EV_READ,
+                                 plugin_callback, n
+                );
+        } else if (p->pid == 0) {
+            exit(child_main(p, in, out));
+        } else if (p->pid < 0) {
+            log_error("failed to fork: %s\n", strerror(errno));
+            return error_internal;
+        }
+    }
+
+    return error_success;
+}
+
 error_t network_connect(network_t *n, struct event_base *base)
 {
     struct addrinfo *info = NULL, *ai = NULL, hint = {0};
@@ -170,6 +315,8 @@ error_t network_connect(network_t *n, struct event_base *base)
     if (n->fd > -1) {
         return error_success;
     }
+
+    n->base = base;
 
     hint.ai_socktype = SOCK_STREAM;
     hint.ai_family = AF_UNSPEC;
@@ -225,6 +372,45 @@ error_t network_connect(network_t *n, struct event_base *base)
     event_add(n->ev, NULL);
 
     irc_connected(n->irc);
+
+    /* Run child processes
+     */
+    network_run(n);
+
+    return error_success;
+}
+
+error_t network_add_plugin(network_t *n, plugin_info_t *p)
+{
+    plugin_info_t **tmp = reallocarray(n->plugin, n->pluginlen+1,
+                                       sizeof(plugin_info_t *)
+        );
+
+    if (tmp == NULL) {
+        return error_memory;
+    }
+
+    n->plugin = tmp;
+    n->plugin[n->pluginlen] = p;
+    ++n->pluginlen;
+
+    return error_success;
+}
+
+error_t network_add_arg(plugin_info_t *p, char *arg)
+{
+    size_t add = (p->argc == 0 ? 3 : 1);
+    char **tmp = reallocarray(p->argv, p->argc + add, sizeof(char*));
+
+    if (tmp == NULL) {
+        return error_memory;
+    }
+
+    p->argv = tmp;
+
+    p->argc += add;
+    p->argv[p->argc-2] = arg;
+    p->argv[p->argc-1] = NULL;
 
     return error_success;
 }

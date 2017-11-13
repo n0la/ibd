@@ -42,7 +42,7 @@ void on_command(irc_t irc, irc_message_t m, void *unused)
 
 static void usage(void)
 {
-    puts("ibd -f -c config");
+    puts("ibd -c config -f");
 }
 
 int parse_args(int ac, char **av)
