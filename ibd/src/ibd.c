@@ -77,6 +77,11 @@ int main(int ac, char **av)
     int i = 0;
     int ret = 0;
 
+    if (getuid() == 0) {
+        fprintf(stderr, "starting ibd as root is a bad idea\n");
+        return 3;
+    }
+
     atexit(cleanup);
 
     signal(SIGTERM, sig);
