@@ -20,7 +20,7 @@ void log_error(char const *fmt, ...)
     if (foreground) {
         fprintf(stderr, "error: ");
         vfprintf(stderr, fmt, lst);
-        fputs("", stderr);
+        fprintf(stderr, "\n");
     } else {
         vsyslog(LOG_ERR, fmt, lst);
     }
@@ -33,12 +33,27 @@ void log_debug(char const *fmt, ...)
 
     va_start(lst, fmt);
     if (foreground) {
-        fprintf(stderr, "debug: ");
-        vfprintf(stderr, fmt, lst);
-        fputs("", stderr);
+        fprintf(stdout, "debug: ");
+        vfprintf(stdout, fmt, lst);
+        fprintf(stdout, "\n");
     } else {
         vsyslog(LOG_DEBUG, fmt, lst);
     }
     va_end(lst);
 
+}
+
+void log_info(char const *fmt, ...)
+{
+    va_list lst;
+
+    va_start(lst, fmt);
+    if (foreground) {
+        fprintf(stdout, "info: ");
+        vfprintf(stdout, fmt, lst);
+        fprintf(stdout, "\n");
+    } else {
+        vsyslog(LOG_NOTICE, fmt, lst);
+    }
+    va_end(lst);
 }

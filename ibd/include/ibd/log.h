@@ -8,6 +8,7 @@
 
 void log_error(char const *fmt, ...);
 void log_debug(char const *fmt, ...);
+void log_info(char const *fmt, ...);
 
 void log_foreground(bool what);
 

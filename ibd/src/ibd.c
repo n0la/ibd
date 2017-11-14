@@ -20,7 +20,8 @@
 #include <syslog.h>
 #include <signal.h>
 
-static char *configfile = "/etc/ibd.conf";
+static char *configfile = NULL;
+static bool foreground = false;
 
 static void cleanup(void)
 {
@@ -54,10 +55,12 @@ int parse_args(int ac, char **av)
 
     int c = 0;
 
+    configfile = strdup("/etc/ibd.conf");
+
     while ((c = getopt_long(ac, av, optstr, opts, NULL)) != -1) {
         switch (c) {
         case 'c': free(configfile); configfile = strdup(optarg); break;
-        case 'f': log_foreground(true); break;
+        case 'f': log_foreground(true); foreground = true; break;
         case '?':
         default:
         {
@@ -82,10 +85,7 @@ int main(int ac, char **av)
         return 3;
     }
 
-    atexit(cleanup);
-
-    signal(SIGTERM, sig);
-    signal(SIGINT, sig);
+    openlog("ibd", 0, LOG_INFO);
 
     tls_init();
 
@@ -99,7 +99,43 @@ int main(int ac, char **av)
         }
     }
 
-    openlog("ibd", 0, LOG_INFO);
+    if (!foreground) {
+        pid_t f = fork();
+        if (f > 0) {
+            return 0;
+        } else if (f < 0) {
+            fprintf(stderr, "failed to fork: %s", strerror(errno));
+            return 3;
+        } else if (f == 0) {
+            openlog("ibd", 0, LOG_INFO);
+
+            if (setsid() < 0) {
+                log_error("failed to allocate session: %s", strerror(errno));
+                return 3;
+            }
+
+            atexit(cleanup);
+
+            signal(SIGTERM, sig);
+            signal(SIGINT, sig);
+
+            signal(SIGCHLD, SIG_IGN);
+            signal(SIGHUP, SIG_IGN);
+
+            close(STDOUT_FILENO);
+            close(STDIN_FILENO);
+            close(STDERR_FILENO);
+
+            chdir("/");
+
+            log_info("ibd successfully started");
+        }
+    } else {
+        openlog("ibd", 0, LOG_INFO);
+        atexit(cleanup);
+        signal(SIGTERM, sig);
+        signal(SIGINT, sig);
+    }
 
     base = event_base_new();
     if (base == NULL) {
@@ -119,12 +155,14 @@ int main(int ac, char **av)
 
         ret = event_base_loop(base, EVLOOP_ONCE | EVLOOP_NONBLOCK);
         if (ret < 0) {
-            log_error("failed to dispatch events\n");
+            log_error("failed to dispatch events");
             break;
         } else if (ret > 1) {
             usleep(10 * 1000);
         }
     }
+
+    log_info("ibd exited, disconnecting...");
 
     return 0;
 }

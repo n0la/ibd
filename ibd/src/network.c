@@ -49,7 +49,7 @@ static error_t network_alloc_ssl(network_t *n)
     if (n->ssl && !n->tls_config) {
         n->tls_config = tls_config_new();
         if (n->tls_config == NULL) {
-            log_error("malloc failed\n");
+            log_error("malloc failed");
             return error_memory;
         }
     }
@@ -130,7 +130,7 @@ static void network_handler(irc_t irc, irc_message_t m, void *arg)
     int ret = 0;
 
     if (IRC_FAILED(irc_message_string(m, &line, &linelen))) {
-        log_error("failed to parse incoming line\n");
+        log_error("failed to parse incoming line");
         return;
     }
 
@@ -144,7 +144,7 @@ static void network_handler(irc_t irc, irc_message_t m, void *arg)
 
         ret = write(p->in, line, linelen);
         if (ret <= 0) {
-            log_error("failed to write to child: %s\n", strerror(errno));
+            log_error("failed to write to child: %s", strerror(errno));
         }
     }
 }
@@ -166,7 +166,7 @@ error_t network_read(network_t *n)
     if (ret > 0) {
         irc_feed(n->irc, buf, ret);
     } else if (ret <= 0) {
-        log_error("reading: %s\n", strerror(errno));
+        log_error("reading: %s", strerror(errno));
         network_disconnect(n);
     }
 
@@ -200,7 +200,7 @@ error_t network_write(network_t *n)
     }
 
     if (ret <= 0) {
-        log_error("writing: %s\n", strerror(errno));
+        log_error("writing: %s", strerror(errno));
         network_disconnect(n);
     }
 
@@ -214,7 +214,7 @@ static void network_callback(evutil_socket_t s, short what, void *arg)
     network_t *n = (network_t*)arg;
 
     if (n->fd == -1) {
-        log_error("fd was -1\n");
+        log_error("fd was -1");
         return;
     }
 
@@ -266,7 +266,7 @@ static int child_main(plugin_info_t *p, int in[2], int out[2])
     p->argv[0] = p->filename;
 
     if (execv(p->filename, p->argv) < 0) {
-        log_error("failed to execute: %s: %s\n", p->filename, strerror(errno));
+        log_error("failed to execute: %s: %s", p->filename, strerror(errno));
         return 3;
     }
 
@@ -283,7 +283,7 @@ static error_t network_run(network_t *n)
         plugin_info_t *p = n->plugin[i];
 
         if (pipe2(in, O_CLOEXEC) < 0) {
-            log_error("failed to create pipe for children: %s\n",
+            log_error("failed to create pipe for children: %s",
                       strerror(errno));
             continue;
         }
@@ -291,12 +291,12 @@ static error_t network_run(network_t *n)
         if (pipe2(out, O_CLOEXEC) < 0) {
             close(in[0]);
             close(in[1]);
-            log_error("failed to create pipe for children: %s\n",
+            log_error("failed to create pipe for children: %s",
                       strerror(errno));
             continue;
         }
 
-        log_debug("forking plugin: %s: %s\n", p->name, p->filename);
+        log_info("forking plugin: %s: %s", p->name, p->filename);
 
         p->pid = fork();
         if (p->pid > 0) {
@@ -312,7 +312,7 @@ static error_t network_run(network_t *n)
         } else if (p->pid == 0) {
             exit(child_main(p, in, out));
         } else if (p->pid < 0) {
-            log_error("failed to fork: %s\n", strerror(errno));
+            log_error("failed to fork: %s", strerror(errno));
             return error_internal;
         }
     }
@@ -358,12 +358,12 @@ error_t network_connect(network_t *n, struct event_base *base)
     }
 
     if (sock < 0) {
-        log_error("could not connect to %s:%s\n", n->host, n->port);
+        log_error("could not connect to %s:%s", n->host, n->port);
         return error_internal;
     } else {
         char buf[100] = {0};
         inet_ntop(ai->ai_family, ai->ai_addr, buf, sizeof(buf)-1);
-        log_debug("connected to %s:%s\n", buf, n->port);
+        log_debug("connected to %s:%s", buf, n->port);
 
         n->fd = sock;
     }
@@ -379,13 +379,13 @@ error_t network_connect(network_t *n, struct event_base *base)
         tls_configure(n->tls, n->tls_config);
 
         if (tls_connect_socket(n->tls, n->fd, n->host) < 0) {
-            log_error("failed to connect via TLS: %s\n", tls_error(n->tls));
+            log_error("failed to connect via TLS: %s", tls_error(n->tls));
             network_disconnect(n);
             return error_tls;
         }
 
         if (tls_handshake(n->tls) < 0) {
-            log_error("failed to make TLS handshake: %s\n", tls_error(n->tls));
+            log_error("failed to make TLS handshake: %s", tls_error(n->tls));
             network_disconnect(n);
             return error_tls;
         }

@@ -4,6 +4,7 @@
 
 #include <ibd/config.h>
 #include <ibd/network.h>
+#include <ibd/log.h>
 
 extern int yylex(void);
 
@@ -12,7 +13,7 @@ static network_t *n = NULL;
 
 void yyerror(char const *str)
 {
-    fprintf(stderr, "error reading configuration file: %s\n", str);
+    log_error("failed to read configuration file: %s", str);
 }
 
 int yywrap(void)
