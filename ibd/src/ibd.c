@@ -20,7 +20,7 @@
 #include <syslog.h>
 #include <signal.h>
 
-static char *configfile = NULL;
+static char *configfile = "/etc/ibd.conf";
 
 static void cleanup(void)
 {
