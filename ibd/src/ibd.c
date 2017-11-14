@@ -119,6 +119,7 @@ int main(int ac, char **av)
             signal(SIGTERM, sig);
             signal(SIGINT, sig);
 
+            signal(SIGPIPE, SIG_IGN);
             signal(SIGCHLD, SIG_IGN);
             signal(SIGHUP, SIG_IGN);
 
@@ -135,6 +136,7 @@ int main(int ac, char **av)
         atexit(cleanup);
         signal(SIGTERM, sig);
         signal(SIGINT, sig);
+        signal(SIGPIPE, SIG_IGN);
     }
 
     base = event_base_new();
