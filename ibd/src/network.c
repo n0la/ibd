@@ -134,11 +134,6 @@ static void network_handler(irc_t irc, irc_message_t m, void *arg)
         return;
     }
 
-    if (linelen > 2) {
-        line[linelen-2] = '\n';
-        line[linelen-1] = '\0';
-    }
-
     for (; i < n->pluginlen; i++) {
         plugin_info_t *p = n->plugin[i];
 
