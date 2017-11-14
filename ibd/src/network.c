@@ -235,7 +235,6 @@ static void plugin_callback(evutil_socket_t s, short what, void *arg)
 
         ret = read(s, buffer, sizeof(buffer));
         if (ret > 0) {
-            printf("%s\n", buffer);
             strbuf_append(n->plugin_buf, buffer, ret);
         }
     }
