@@ -48,7 +48,7 @@ char *strip_quote(char *s)
     int integer;
 }
 
-%token <integer>       TOK_NETWORK TOK_PAR_OPEN TOK_PAR_CLOSE TOK_EQUAL TOK_SEMI_COLON TOK_PLUGIN TOK_FILENAME TOK_OPTION TOK_ARGS
+%token <integer>       TOK_NETWORK TOK_PAR_OPEN TOK_PAR_CLOSE TOK_EQUAL TOK_SEMI_COLON TOK_PLUGIN TOK_FILENAME TOK_OPTION TOK_ARGS TOK_ENV
 %token <string>        TOK_STRING
 %token <string>        TOK_QUOTED_STRING
 
@@ -98,6 +98,7 @@ plugin:         TOK_PLUGIN TOK_QUOTED_STRING TOK_PAR_OPEN plugin_vars TOK_PAR_CL
 plugin_vars:
         |       plugin_vars plugin_filename
         |       plugin_vars plugin_args
+        |       plugin_vars plugin_env
         ;
 
 plugin_filename:TOK_FILENAME TOK_QUOTED_STRING TOK_SEMI_COLON
@@ -111,6 +112,27 @@ plugin_filename:TOK_FILENAME TOK_QUOTED_STRING TOK_SEMI_COLON
 
                     free(p->filename);
                     p->filename = strip_quote($2);
+                }
+        ;
+
+plugin_env:     TOK_ENV TOK_QUOTED_STRING TOK_QUOTED_STRING TOK_SEMI_COLON
+                {
+                    char *env = NULL;
+
+                    if (p == NULL) {
+                        p = calloc(1, sizeof(plugin_info_t));
+                        if (p == NULL) {
+                            yyerror("memory allocation");
+                        }
+                    }
+
+                    asprintf(&env, "%s=%s",
+                             strip_quote($2), strip_quote($3)
+                    );
+
+                    network_add_env(p, env);
+                    free($2);
+                    free($3);
                 }
         ;
 

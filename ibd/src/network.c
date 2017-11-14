@@ -237,6 +237,12 @@ static void plugin_callback(evutil_socket_t s, short what, void *arg)
 
 static int child_main(plugin_info_t *p, int in[2], int out[2])
 {
+    size_t i = 0;
+
+    for (i = 0; i < p->envc; i++) {
+        putenv(p->env[i]);
+    }
+
     p->in = in[0];
     p->out = out[1];
 
@@ -412,6 +418,21 @@ error_t network_add_plugin(network_t *n, plugin_info_t *p)
     n->plugin = tmp;
     n->plugin[n->pluginlen] = p;
     ++n->pluginlen;
+
+    return error_success;
+}
+
+error_t network_add_env(plugin_info_t *p, char *env)
+{
+    char **tmp = reallocarray(p->env, p->envc+1, sizeof(char*));
+
+    if (tmp == NULL) {
+        return error_memory;
+    }
+
+    p->env = tmp;
+    p->env[p->envc] = env;
+    ++p->envc;
 
     return error_success;
 }

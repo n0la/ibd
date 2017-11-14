@@ -22,6 +22,9 @@ typedef struct {
 
     char **argv;
     size_t argc;
+
+    char **env;
+    size_t envc;
 } plugin_info_t;
 
 typedef struct {
@@ -55,5 +58,6 @@ error_t network_connect(network_t *n, struct event_base *base);
 
 error_t network_add_plugin(network_t *n, plugin_info_t *p);
 error_t network_add_arg(plugin_info_t *p, char *arg);
+error_t network_add_env(plugin_info_t *p, char *env);
 
 #endif
