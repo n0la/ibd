@@ -39,6 +39,14 @@ network_t * network_new(void)
         return NULL;
     }
 
+    i->plugin_err_buf = strbuf_new();
+    if (i->plugin_err_buf == NULL) {
+        irc_free(i->irc);
+        strbuf_free(i->plugin_buf);
+        free(i);
+        return NULL;
+    }
+
     irc_setopt(i->irc, ircopt_nick, "ibd");
 
     return i;
@@ -114,9 +122,19 @@ error_t network_disconnect(network_t *n)
             waitpid(p->pid, &status, 0);
             p->pid = -1;
         }
+
+        close(p->in);
+        p->in = -1;
+
+        close(p->out);
+        p->out = -1;
+
+        close(p->err);
+        p->err = -1;
     }
 
     strbuf_reset(n->plugin_buf);
+    strbuf_reset(n->plugin_err_buf);
 
     return error_success;
 }
@@ -147,7 +165,7 @@ static void network_handler(irc_t irc, irc_message_t m, void *arg)
 
 error_t network_read(network_t *n)
 {
-    char buf[100];
+    char buf[100] = {0};
     int ret = 0;
 
     if (n->ssl) {
@@ -181,7 +199,7 @@ error_t network_write(network_t *n)
         /* check plugins
          */
         ret = strbuf_getline(n->plugin_buf, &line, &linelen);
-        if (ret <= 0) {
+        if (ret < 0) {
             return error_success;
         }
     }
@@ -223,19 +241,16 @@ static void network_callback(evutil_socket_t s, short what, void *arg)
 
 static void plugin_err_callback(evutil_socket_t s, short what, void *arg)
 {
+    network_t *n = (network_t*)arg;
+    char buffer[100] = {0};
+
     if ((what & EV_READ) == EV_READ) {
-        char *line = NULL;
-        size_t linelen;
-        FILE *f = fdopen(s, "r");
+        int ret = 0;
 
-        if (getline(&line, &linelen, f) > 0) {
-            line[linelen-1] = '\0';
-            log_error(line);
+        ret = read(s, buffer, sizeof(buffer));
+        if (ret > 0) {
+            strbuf_append(n->plugin_err_buf, buffer, ret);
         }
-
-        fclose(f);
-        free(line);
-        line = NULL;
     }
 }
 
@@ -262,11 +277,11 @@ static int child_main(plugin_info_t *p, int in[2], int out[2], int err[2])
         putenv(p->env[i]);
     }
 
-    p->in = in[0];
+    p->in = in[1];
     p->out = out[1];
     p->err = err[1];
 
-    close(in[1]);
+    close(in[0]);
     close(out[0]);
     close(err[0]);
 
@@ -305,49 +320,32 @@ static error_t network_run(network_t *n)
     for (; i < n->pluginlen; i++) {
         plugin_info_t *p = n->plugin[i];
 
-        if (pipe2(in, O_CLOEXEC) < 0) {
-            log_error("failed to create pipe for children: %s",
-                      strerror(errno));
-            continue;
-        }
-
-        if (pipe2(out, O_CLOEXEC) < 0) {
-            close(in[0]);
-            close(in[1]);
-            log_error("failed to create pipe for children: %s",
-                      strerror(errno));
-            continue;
-        }
-
-        if (pipe2(err, O_CLOEXEC) < 0) {
-            close(in[0]);
-            close(in[1]);
-            close(out[0]);
-            close(out[1]);
-            log_error("failed to create pipe for children: %s",
-                      strerror(errno));
-            continue;
-        }
+        socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, in);
+        socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, out);
+        socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, err);
 
         log_info("forking plugin: %s: %s", p->name, p->filename);
 
         p->pid = fork();
         if (p->pid > 0) {
-            p->in = in[1];
+            p->in = in[0];
             p->out = out[0];
             p->err = err[0];
 
-            close(in[0]);
+            close(in[1]);
             close(out[1]);
             close(err[1]);
 
             p->in_ev = event_new(n->base, p->out, EV_PERSIST|EV_READ,
                                  plugin_callback, n
                 );
+            event_add(p->in_ev, NULL);
 
             p->err_ev = event_new(n->base, p->err, EV_PERSIST|EV_READ,
                                   plugin_err_callback, n
                 );
+            event_add(p->err_ev, NULL);
+
         } else if (p->pid == 0) {
             exit(child_main(p, in, out, err));
         } else if (p->pid < 0) {

@@ -41,6 +41,7 @@ typedef struct {
     struct event_base *base;
 
     strbuf_t plugin_buf;
+    strbuf_t plugin_err_buf;
 
     int fd;
     struct tls *tls;
