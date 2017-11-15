@@ -20,8 +20,10 @@ static void print_message(irc_message_t m)
     irc_error_t r;
 
     r = irc_message_string(m, &line, &linelen);
+
     if (IRC_SUCCESS(r)) {
         printf("%s", line);
+        fflush(stdout);
     }
 
     free(line);
