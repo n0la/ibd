@@ -26,6 +26,10 @@ irc_error_t irc_message_parse(irc_message_t m,
                               char const *line,
                               size_t lensize);
 
+irc_message_t irc_message_privmsg(char const *prefix,
+                                  char const *target,
+                                  char const *msg, ...);
+
 irc_message_t irc_message_make(char const *prefix,
                                char const *command, ...);
 

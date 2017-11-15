@@ -135,6 +135,27 @@ cleanup:
     return r;
 }
 
+irc_message_t irc_message_privmsg(char const *prefix, char const *target,
+                                  char const *msg, ...)
+{
+    va_list lst;
+    irc_message_t m = NULL;
+    char *body = NULL;
+
+    va_start(lst, msg);
+    vasprintf(&body, msg, lst);
+    va_end(lst);
+
+    if (body == NULL) {
+        return NULL;
+    }
+
+    m = irc_message_make(prefix, "PRIVMSG", target, body, NULL);
+    free(body);
+
+    return m;
+}
+
 irc_message_t irc_message_make(char const *prefix,
                                char const *cmd, ...)
 {
