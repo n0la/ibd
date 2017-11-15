@@ -58,8 +58,9 @@ ssize_t strbuf_append(strbuf_t b, char const *buffer, ssize_t len)
     if ((len+b->end) > b->bufsize) {
         char *tmp = NULL;
 
-        tmp = recallocarray(b->buf, b->bufsize,
-                            b->bufsize+len+1, sizeof(char)
+        tmp = recallocarray(b->buf, b->bufsize+1,
+                            b->bufsize+len+1,
+                            sizeof(char)
             );
         if (tmp == NULL) {
             return -2;
