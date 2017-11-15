@@ -5,6 +5,9 @@
 
 #include <irc/message.h>
 
+static char *nick = NULL;
+static char *pass = NULL;
+
 static void usage(void)
 {
     puts("nickserv -n nick -p password");
@@ -17,21 +20,32 @@ static void print_message(irc_message_t m)
     irc_error_t r;
 
     r = irc_message_string(m, &line, &linelen);
-    if (IRC_SUCCESS(r) && linelen > 2) {
-        line[linelen-2] = '\0';
-        printf("%s\n", line);
+    if (IRC_SUCCESS(r)) {
+        printf("%s", line);
     }
 
     free(line);
+}
+
+static void send_register(void)
+{
+    irc_message_t id = NULL;
+    /* send register account
+     */
+    id = irc_message_make(nick, "PRIVMSG", "nickserv", "identify",
+                          nick, pass, NULL);
+    if (id != NULL) {
+        print_message(id);
+    }
+    irc_message_free(id);
+    id = NULL;
 }
 
 int main(int ac, char **av)
 {
     char *line = NULL;
     size_t linelen = 0;
-    char *nick = NULL;
-    char *pass = NULL;
-    irc_message_t m = NULL, id = NULL;
+    irc_message_t m = NULL;
     irc_error_t r;
     int c = 0;
 
@@ -52,36 +66,40 @@ int main(int ac, char **av)
     }
 
     if (nick == NULL) {
-        fprintf(stderr, "no nick specified\n");
+        fprintf(stderr, "nickserv: no nick specified\n");
         return 3;
     }
 
     if (pass == NULL) {
         pass = getenv("NICKSERV_PASSWORD");
         if (pass == NULL) {
-            fprintf(stderr, "no password specified\n");
+            fprintf(stderr, "nickserv: no password specified\n");
             return 3;
         }
     }
 
     while (getline(&line, &linelen, stdin) != -1) {
+        fprintf(stderr, "%s", line);
+
+        m = irc_message_new();
+        if (m == NULL) {
+            continue;
+        }
+
         r = irc_message_parse(m, line, linelen);
 
         if (IRC_FAILED(r)) {
+            irc_message_free(m);
+            m = NULL;
             continue;
         }
 
         if (m->command != NULL && strcmp(m->command, "MODE") == 0) {
-            /* send register account
-             */
-            id = irc_message_make(NULL, "PRIVMSG", "nickserv", "identify",
-                                  nick, pass, NULL);
-            print_message(id);
-
-            irc_message_free(id);
-            id = NULL;
+            send_register();
         }
     }
+
+    fprintf(stderr, "nickserv: quitting\n");
 
     return 0;
 }
