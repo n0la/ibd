@@ -159,7 +159,9 @@ irc_message_t irc_message_makev(char const *prefix,
         return NULL;
     }
 
-    m->prefix = strdup(prefix);
+    if (prefix) {
+        m->prefix = strdup(prefix);
+    }
     m->command = strdup(cmd);
 
     while ((arg = va_arg(lst, char*)) != NULL) {
