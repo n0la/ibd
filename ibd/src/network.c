@@ -199,7 +199,7 @@ error_t network_write(network_t *n)
         /* check plugins
          */
         ret = strbuf_getline(n->plugin_buf, &line, &linelen);
-        if (ret < 0) {
+        if (ret != 0) {
             return error_success;
         }
     }
