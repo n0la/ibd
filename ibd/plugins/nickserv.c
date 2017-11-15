@@ -79,8 +79,6 @@ int main(int ac, char **av)
     }
 
     while (getline(&line, &linelen, stdin) != -1) {
-        fprintf(stderr, "%s", line);
-
         m = irc_message_new();
         if (m == NULL) {
             continue;
