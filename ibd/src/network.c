@@ -139,7 +139,8 @@ static void network_handler(irc_t irc, irc_message_t m, void *arg)
 
         ret = write(p->in, line, linelen);
         if (ret <= 0) {
-            log_error("failed to write to child: %s", strerror(errno));
+            log_error("failed to write to child: %s: %s",
+                      p->name, strerror(errno));
         }
     }
 }
@@ -220,6 +221,24 @@ static void network_callback(evutil_socket_t s, short what, void *arg)
     }
 }
 
+static void plugin_err_callback(evutil_socket_t s, short what, void *arg)
+{
+    if ((what & EV_READ) == EV_READ) {
+        char *line = NULL;
+        size_t linelen;
+        FILE *f = fdopen(s, "r");
+
+        if (getline(&line, &linelen, f) > 0) {
+            line[linelen-1] = '\0';
+            log_error(line);
+        }
+
+        fclose(f);
+        free(line);
+        line = NULL;
+    }
+}
+
 static void plugin_callback(evutil_socket_t s, short what, void *arg)
 {
     network_t *n = (network_t*)arg;
@@ -235,7 +254,7 @@ static void plugin_callback(evutil_socket_t s, short what, void *arg)
     }
 }
 
-static int child_main(plugin_info_t *p, int in[2], int out[2])
+static int child_main(plugin_info_t *p, int in[2], int out[2], int err[2])
 {
     size_t i = 0;
 
@@ -245,14 +264,17 @@ static int child_main(plugin_info_t *p, int in[2], int out[2])
 
     p->in = in[0];
     p->out = out[1];
+    p->err = err[1];
 
     close(in[1]);
     close(out[0]);
+    close(err[0]);
 
     /* Preare stdin and stdout
      */
     dup2(p->in, STDIN_FILENO);
     dup2(p->out, STDOUT_FILENO);
+    dup2(p->err, STDERR_FILENO);
 
     if (p->argv == NULL) {
         p->argv = calloc(2, sizeof(char*));
@@ -278,6 +300,7 @@ static error_t network_run(network_t *n)
     size_t i = 0;
     int in[2];
     int out[2];
+    int err[2];
 
     for (; i < n->pluginlen; i++) {
         plugin_info_t *p = n->plugin[i];
@@ -296,21 +319,37 @@ static error_t network_run(network_t *n)
             continue;
         }
 
+        if (pipe2(err, O_CLOEXEC) < 0) {
+            close(in[0]);
+            close(in[1]);
+            close(out[0]);
+            close(out[1]);
+            log_error("failed to create pipe for children: %s",
+                      strerror(errno));
+            continue;
+        }
+
         log_info("forking plugin: %s: %s", p->name, p->filename);
 
         p->pid = fork();
         if (p->pid > 0) {
             p->in = in[1];
             p->out = out[0];
+            p->err = err[0];
 
             close(in[0]);
             close(out[1]);
+            close(err[1]);
 
-            p->in_ev = event_new(n->base, p->in, EV_PERSIST|EV_READ,
+            p->in_ev = event_new(n->base, p->out, EV_PERSIST|EV_READ,
                                  plugin_callback, n
                 );
+
+            p->err_ev = event_new(n->base, p->err, EV_PERSIST|EV_READ,
+                                  plugin_err_callback, n
+                );
         } else if (p->pid == 0) {
-            exit(child_main(p, in, out));
+            exit(child_main(p, in, out, err));
         } else if (p->pid < 0) {
             log_error("failed to fork: %s", strerror(errno));
             return error_internal;

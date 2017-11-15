@@ -17,7 +17,10 @@ typedef struct {
 
     int out;
     int in;
+    int err;
+
     struct event *in_ev;
+    struct event *err_ev;
     pid_t pid;
 
     char **argv;
