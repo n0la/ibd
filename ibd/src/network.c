@@ -321,8 +321,8 @@ static error_t network_run(network_t *n)
         plugin_info_t *p = n->plugin[i];
 
         socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, in);
-        socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, out);
-        socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, err);
+        socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, PF_UNSPEC, out);
+        socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, PF_UNSPEC, err);
 
         log_info("forking plugin: %s: %s", p->name, p->filename);
 
