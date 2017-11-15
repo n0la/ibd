@@ -34,8 +34,7 @@ static void send_register(void)
     irc_message_t id = NULL;
     /* send register account
      */
-    id = irc_message_make(nick, "PRIVMSG", "nickserv", "identify",
-                          nick, pass, NULL);
+    id = irc_message_privmsg(nick, "nickserv", "IDENTIFY %s", pass);
     if (id != NULL) {
         print_message(id);
     }
