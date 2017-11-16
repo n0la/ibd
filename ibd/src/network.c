@@ -14,6 +14,9 @@
 
 static void network_handler(irc_t i, irc_message_t m, void *arg);
 
+error_t child_run(network_t *n, plugin_info_t *p);
+void child_close(network_t *n, plugin_info_t *p);
+
 network_t * network_new(void)
 {
     network_t *i = calloc(1, sizeof(network_t));
@@ -98,7 +101,7 @@ error_t network_set(network_t *n, char const *k, char const *v)
 
 error_t network_disconnect(network_t *n)
 {
-    int i = 0, status = 0;
+    int i = 0;
 
     if (n->ev) {
         event_del(n->ev);
@@ -117,20 +120,7 @@ error_t network_disconnect(network_t *n)
 
     for (i = 0; i < n->pluginlen; i++) {
         plugin_info_t *p = n->plugin[i];
-        if (p->pid >= 0) {
-            kill(p->pid, SIGTERM);
-            waitpid(p->pid, &status, 0);
-            p->pid = -1;
-        }
-
-        close(p->in);
-        p->in = -1;
-
-        close(p->out);
-        p->out = -1;
-
-        close(p->err);
-        p->err = -1;
+        child_close(n, p);
     }
 
     strbuf_reset(n->plugin_buf);
@@ -239,119 +229,16 @@ static void network_callback(evutil_socket_t s, short what, void *arg)
     }
 }
 
-static void plugin_err_callback(evutil_socket_t s, short what, void *arg)
-{
-    network_t *n = (network_t*)arg;
-    char buffer[100] = {0};
-
-    if ((what & EV_READ) == EV_READ) {
-        int ret = 0;
-
-        ret = read(s, buffer, sizeof(buffer));
-        if (ret > 0) {
-            strbuf_append(n->plugin_err_buf, buffer, ret);
-        }
-    }
-}
-
-static void plugin_callback(evutil_socket_t s, short what, void *arg)
-{
-    network_t *n = (network_t*)arg;
-    char buffer[100] = {0};
-
-    if ((what & EV_READ) == EV_READ) {
-        int ret = 0;
-
-        ret = read(s, buffer, sizeof(buffer));
-        if (ret > 0) {
-            strbuf_append(n->plugin_buf, buffer, ret);
-        }
-    }
-}
-
-static int child_main(plugin_info_t *p, int in[2], int out[2], int err[2])
-{
-    size_t i = 0;
-
-    for (i = 0; i < p->envc; i++) {
-        putenv(p->env[i]);
-    }
-
-    p->in = in[1];
-    p->out = out[1];
-    p->err = err[1];
-
-    close(in[0]);
-    close(out[0]);
-    close(err[0]);
-
-    /* Preare stdin and stdout
-     */
-    dup2(p->in, STDIN_FILENO);
-    dup2(p->out, STDOUT_FILENO);
-    dup2(p->err, STDERR_FILENO);
-
-    if (p->argv == NULL) {
-        p->argv = calloc(2, sizeof(char*));
-        if (p->argv == NULL) {
-            log_error("memory exhaustion");
-            return error_memory;
-        }
-        p->argc = 2;
-    }
-
-    p->argv[0] = p->filename;
-
-    if (execv(p->filename, p->argv) < 0) {
-        log_error("failed to execute: %s: %s", p->filename, strerror(errno));
-        return 3;
-    }
-
-    return 0;
-}
-
 static error_t network_run(network_t *n)
 {
+    error_t r = 0;
     size_t i = 0;
-    int in[2];
-    int out[2];
-    int err[2];
 
     for (; i < n->pluginlen; i++) {
         plugin_info_t *p = n->plugin[i];
 
-        socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, in);
-        socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, PF_UNSPEC, out);
-        socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, PF_UNSPEC, err);
-
         log_info("forking plugin: %s: %s", p->name, p->filename);
-
-        p->pid = fork();
-        if (p->pid > 0) {
-            p->in = in[0];
-            p->out = out[0];
-            p->err = err[0];
-
-            close(in[1]);
-            close(out[1]);
-            close(err[1]);
-
-            p->in_ev = event_new(n->base, p->out, EV_PERSIST|EV_READ,
-                                 plugin_callback, n
-                );
-            event_add(p->in_ev, NULL);
-
-            p->err_ev = event_new(n->base, p->err, EV_PERSIST|EV_READ,
-                                  plugin_err_callback, n
-                );
-            event_add(p->err_ev, NULL);
-
-        } else if (p->pid == 0) {
-            exit(child_main(p, in, out, err));
-        } else if (p->pid < 0) {
-            log_error("failed to fork: %s", strerror(errno));
-            return error_internal;
-        }
+        r = child_run(n, p);
     }
 
     return error_success;

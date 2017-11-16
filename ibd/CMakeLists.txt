@@ -19,6 +19,7 @@ SET(SOURCES
   "src/log.c"
   "src/config.c"
   "src/network.c"
+  "src/child.c"
   )
 
 SET(HEADERS
