@@ -6,8 +6,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #define IRC_PROTOCOL_DELIMITER "\r\n"
+
+#define IRC_COMMAND_MODE           "MODE"
+#define IRC_COMMAND_NICK           "NICK"
+#define IRC_COMMAND_PRIVMSG        "PRIVMSG"
+
+#define IRC_ERR_NICKNAMEINUSE      "433"
 
 struct irc_message_
 {
@@ -38,5 +45,7 @@ irc_message_t irc_message_makev(char const *prefix,
                                 va_list lst);
 
 irc_error_t irc_message_string(irc_message_t m, char **s, size_t *slen);
+
+bool irc_message_is(irc_message_t m, char const *cmd);
 
 #endif

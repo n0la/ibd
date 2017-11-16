@@ -246,3 +246,9 @@ irc_error_t irc_message_string(irc_message_t m, char **s, size_t *slen)
 
     return irc_error_success;
 }
+
+bool irc_message_is(irc_message_t m, char const *cmd)
+{
+    return_if_true(m == NULL || m->command == NULL, false);
+    return (strcmp(m->command, cmd) == 0);
+}
