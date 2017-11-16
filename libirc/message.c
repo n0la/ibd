@@ -27,6 +27,14 @@ void irc_message_free(irc_message_t m)
     free(m);
 }
 
+static void irc_message_add2(char ***ac, size_t *av, char const *s)
+{
+    char *dup = NULL;
+
+    dup = strdup(s);
+    irc_strv_add(ac, av, dup);
+}
+
 static void irc_message_add(char ***ac, size_t *av, strbuf_t b)
 {
     char *dup = NULL;
@@ -92,7 +100,7 @@ irc_error_t irc_message_parse(irc_message_t c, char const *l, size_t len)
                 strbuf_append(argbuf, part, strlen(part));
             } else {
                 if (argbuf == NULL) {
-                    irc_message_add(&args, &argslen, argbuf);
+                    irc_message_add2(&args, &argslen, part);
                 } else {
                     strbuf_append(argbuf, " ", 1);
                     strbuf_append(argbuf, part, strlen(part));
