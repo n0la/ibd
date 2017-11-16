@@ -85,7 +85,7 @@ int main(int ac, char **av)
         return 3;
     }
 
-    openlog("ibd", 0, LOG_INFO);
+    openlog("ibd", LOG_NDELAY, LOG_USER);
 
     tls_init();
 
@@ -107,7 +107,7 @@ int main(int ac, char **av)
             fprintf(stderr, "failed to fork: %s", strerror(errno));
             return 3;
         } else if (f == 0) {
-            openlog("ibd", 0, LOG_INFO);
+            openlog("ibd", LOG_NDELAY, LOG_USER);
 
             if (setsid() < 0) {
                 log_error("failed to allocate session: %s", strerror(errno));
