@@ -252,3 +252,23 @@ bool irc_message_is(irc_message_t m, char const *cmd)
     return_if_true(m == NULL || m->command == NULL, false);
     return (strcmp(m->command, cmd) == 0);
 }
+
+bool irc_message_prefix_nick(irc_message_t m, char const *nick)
+{
+    char *sep = NULL;
+    char *p = NULL;
+
+    return_if_true(m == NULL || m->prefix == NULL, false);
+
+    p = m->prefix;
+    while (*p == ':' && *p != '\0') {
+        ++p;
+    }
+
+    sep = strchr(p, '!');
+    if (sep != NULL) {
+        return strncmp(p, nick, (sep - p)) == 0;
+    }
+
+    return (strcmp(p, nick) == 0);
+}
