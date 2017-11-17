@@ -128,19 +128,13 @@ int main(int ac, char **av)
             continue;
         }
 
-        if (!irc_message_prefix_nick(m, nick)) {
-            /* we have no use for messages that are not directed at us
-             */
-            irc_message_free(m);
-            m = NULL;
-            continue;
-        }
-
         if (irc_message_is(m, IRC_COMMAND_MODE) && !regain) {
             send_register();
         } else if (irc_message_is(m, IRC_ERR_NICKNAMEINUSE)) {
+            fprintf(stderr, "nickserv: nick is in use, regaining...\n");
             /* nick is in use, so identify and then try to regain
              */
+            send_register();
             send_regain();
             regain = true;
         }
