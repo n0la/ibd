@@ -75,7 +75,7 @@ irc_error_t irc_message_parse(irc_message_t c, char const *l, size_t len)
              * the command and move past the command thing.
              */
             if (*part == ':') {
-                prefix = strdup(part);
+                prefix = strdup(part+1);
             } else {
                 command = strdup(part);
                 ++i;
