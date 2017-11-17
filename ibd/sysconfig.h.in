@@ -1,0 +1,6 @@
+#ifndef IRCB_SYSCONFIG_H
+#define IRCB_SYSCONFIG_H
+
+#define IBD_PREFIX "@CMAKE_INSTALL_PREFIX@"
+
+#endif
