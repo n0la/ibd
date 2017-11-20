@@ -27,6 +27,25 @@ void irc_message_free(irc_message_t m)
     free(m);
 }
 
+irc_message_t irc_message_parse2(char const *line, size_t linesize)
+{
+    irc_message_t m = irc_message_new();
+    irc_error_t e = 0;
+
+    if (m == NULL) {
+        return m;
+    }
+
+    e = irc_message_parse(m, line, linesize);
+    if (IRC_FAILED(e)) {
+        irc_message_free(m);
+        return NULL;
+    }
+
+    return m;
+}
+
+
 static void irc_message_add2(char ***ac, size_t *av, char const *s)
 {
     char *dup = NULL;

@@ -29,6 +29,8 @@ typedef struct irc_message_ *irc_message_t;
 irc_message_t irc_message_new(void);
 void irc_message_free(irc_message_t m);
 
+irc_message_t irc_message_parse2(char const *line, size_t linesize);
+
 irc_error_t irc_message_parse(irc_message_t m,
                               char const *line,
                               size_t lensize);
