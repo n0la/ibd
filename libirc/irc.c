@@ -57,11 +57,11 @@ static void irc_invite_handler(irc_t i, irc_message_t m, void *unused)
 {
     char *channel = NULL;
 
-    if (m->args == NULL || m->argslen == 0) {
+    if (m->args == NULL || m->argslen < 1) {
         return;
     }
 
-    channel = m->args[0];
+    channel = m->args[1];
     irc_join(i, channel);
 }
 
