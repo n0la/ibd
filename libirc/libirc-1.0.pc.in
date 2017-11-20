@@ -1,7 +1,7 @@
 version=1.0.0
-prefix=/usr/local
-libdir=/usr/local/lib
-includedir=/usr/local/include
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=@CMAKE_INSTALL_PREFIX@/lib
+includedir=@CMAKE_INSTALL_PREFIX@/include
 
 Name: libirc
 Description: IRC client and server library
