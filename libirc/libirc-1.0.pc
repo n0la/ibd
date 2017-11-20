@@ -1,0 +1,11 @@
+version=1.0.0
+prefix=/usr/local
+libdir=/usr/local/lib
+includedir=/usr/local/include
+
+Name: libirc
+Description: IRC client and server library
+Version: 1.0.0
+Requires:
+Libs: -L${libdir} -lirc
+Cflags: -I${includedir}
