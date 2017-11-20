@@ -81,7 +81,6 @@ int main(int ac, char **av)
     char *line = NULL;
     size_t linelen = 0;
     irc_message_t m = NULL;
-    irc_error_t r;
     int c = 0;
     bool regain = false;
 
@@ -115,20 +114,14 @@ int main(int ac, char **av)
     }
 
     while (getline(&line, &linelen, stdin) != -1) {
-        m = irc_message_new();
+        m = irc_message_parse2(line, linelen);
         if (m == NULL) {
             continue;
         }
 
-        r = irc_message_parse(m, line, linelen);
-
-        if (IRC_FAILED(r)) {
-            irc_message_free(m);
-            m = NULL;
-            continue;
-        }
-
-        if (irc_message_is(m, IRC_COMMAND_MODE) && !regain) {
+        if (irc_message_is(m, IRC_COMMAND_MODE) &&
+            strcmp(m->prefix, "alice") == 0 &&
+            !regain) {
             send_register();
         } else if (irc_message_is(m, IRC_ERR_NICKNAMEINUSE)) {
             fprintf(stderr, "nickserv: nick is in use, regaining...\n");
