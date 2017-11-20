@@ -15,7 +15,9 @@
 static void network_handler(irc_t i, irc_message_t m, void *arg);
 
 error_t child_run(network_t *n, plugin_info_t *p);
+error_t child_run_all(network_t *n);
 void child_close(network_t *n, plugin_info_t *p);
+void child_close_all(network_t *n);
 
 network_t * network_new(void)
 {
@@ -101,8 +103,6 @@ error_t network_set(network_t *n, char const *k, char const *v)
 
 error_t network_disconnect(network_t *n)
 {
-    int i = 0;
-
     if (n->ev) {
         event_del(n->ev);
         event_free(n->ev);
@@ -118,10 +118,7 @@ error_t network_disconnect(network_t *n)
         n->tls = NULL;
     }
 
-    for (i = 0; i < n->pluginlen; i++) {
-        plugin_info_t *p = n->plugin[i];
-        child_close(n, p);
-    }
+    child_close_all(n);
 
     strbuf_reset(n->plugin_buf);
     strbuf_reset(n->plugin_err_buf);
@@ -229,21 +226,6 @@ static void network_callback(evutil_socket_t s, short what, void *arg)
     }
 }
 
-static error_t network_run(network_t *n)
-{
-    error_t r = 0;
-    size_t i = 0;
-
-    for (; i < n->pluginlen; i++) {
-        plugin_info_t *p = n->plugin[i];
-
-        log_info("forking plugin: %s: %s", p->name, p->filename);
-        r = child_run(n, p);
-    }
-
-    return error_success;
-}
-
 error_t network_connect(network_t *n, struct event_base *base)
 {
     struct addrinfo *info = NULL, *ai = NULL, hint = {0};
@@ -324,7 +306,7 @@ error_t network_connect(network_t *n, struct event_base *base)
 
     /* Run child processes
      */
-    network_run(n);
+    child_run_all(n);
 
     return error_success;
 }

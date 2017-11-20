@@ -16,6 +16,8 @@ static void child_err_callback(evutil_socket_t s, short what, void *arg)
 {
     network_t *n = (network_t*)arg;
     char buffer[100] = {0};
+    char *line = NULL;
+    size_t linelen = 0;
 
     if ((what & EV_READ) == EV_READ) {
         int ret = 0;
@@ -23,6 +25,12 @@ static void child_err_callback(evutil_socket_t s, short what, void *arg)
         ret = read(s, buffer, sizeof(buffer));
         if (ret > 0) {
             strbuf_append(n->plugin_err_buf, buffer, ret);
+
+            if (strbuf_getline(n->plugin_err_buf, &line, &linelen) == 0) {
+                log_error(line);
+                free(line);
+                line = NULL;
+            }
         }
     }
 }
@@ -192,4 +200,29 @@ cleanup:
     }
 
     return error_internal;
+}
+
+void child_close_all(network_t *n)
+{
+    int i = 0;
+
+    for (i = 0; i < n->pluginlen; i++) {
+        plugin_info_t *p = n->plugin[i];
+        child_close(n, p);
+    }
+}
+
+error_t child_run_all(network_t *n)
+{
+    error_t r = 0;
+    size_t i = 0;
+
+    for (; i < n->pluginlen; i++) {
+        plugin_info_t *p = n->plugin[i];
+
+        log_info("forking plugin: %s: %s", p->name, p->filename);
+        r = child_run(n, p);
+    }
+
+    return error_success;
 }
