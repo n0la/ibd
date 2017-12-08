@@ -35,6 +35,13 @@ root at your own peril. Just kidding, I would never allow
 you to run this heap of dung
 [as root](https://github.com/n0la/ibd/blob/master/ibd/src/ibd.c#L137).
 
+ibd takes the following parameters:
+
+ Parameter                      | Meaning
+ -------------------------------|-----------------------------
+ ``-c`` or ``--config``       | Alternate location of the config file
+ ``-f`` or ``--foreground`` | Run in foreground
+
 ## ibd.conf
 
 This configuration file configures ``ibd`` to do its magic.
