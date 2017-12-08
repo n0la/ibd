@@ -4,7 +4,7 @@ to help your babushka over the road, only to abandon
 her in the middle of a traffic line, while also stealing
 her handbag.
 
-## Requirements
+# Requirements
 
 You will need the following:
 
@@ -14,6 +14,17 @@ You will need the following:
 * bison
 * libtls (is part of LibreSSL)
 * OpenBSD and/or libbsd
+
+# Building
+
+Biulding is done through cmake:
+
+```
+$ mkdir build
+$ cd build
+$ cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
+$ make
+```
 
 # ibd
 
