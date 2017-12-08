@@ -71,7 +71,7 @@ irc_t irc_new(void)
     int r = 0;
 
     i = calloc(1, sizeof(struct irc_));
-    if (!i) {
+    if (i == NULL) {
         return NULL;
     }
 
