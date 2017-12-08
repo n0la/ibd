@@ -31,7 +31,13 @@ network_t * network_new(void)
 
     i->irc = irc_new();
     if (i->irc == NULL) {
-        free(i);
+        network_free(i);
+        return NULL;
+    }
+
+    i->channels = strv_new();
+    if (i->channels == NULL) {
+        network_free(i);
         return NULL;
     }
 
@@ -39,22 +45,40 @@ network_t * network_new(void)
 
     i->plugin_buf = strbuf_new();
     if (i->plugin_buf == NULL) {
-        irc_free(i->irc);
-        free(i);
+        network_free(i);
         return NULL;
     }
 
     i->plugin_err_buf = strbuf_new();
     if (i->plugin_err_buf == NULL) {
-        irc_free(i->irc);
-        strbuf_free(i->plugin_buf);
-        free(i);
+        network_free(i);
         return NULL;
     }
 
     irc_setopt(i->irc, ircopt_nick, "ibd");
 
     return i;
+}
+
+void network_free(network_t *n)
+{
+    if (n == NULL) {
+        return;
+    }
+
+    irc_free(n->irc);
+    n->irc = NULL;
+
+    strbuf_free(n->plugin_buf);
+    n->plugin_buf = NULL;
+
+    strbuf_free(n->plugin_err_buf);
+    n->plugin_err_buf = NULL;
+
+    strv_free(n->channels);
+    n->channels = NULL;
+
+    free(n);
 }
 
 static error_t network_alloc_ssl(network_t *n)
@@ -226,6 +250,19 @@ static void network_callback(evutil_socket_t s, short what, void *arg)
     }
 }
 
+static error_t network_join(network_t *n)
+{
+    size_t i = 0;
+
+    for (; i < n->channels->vlen; i++) {
+        char const *chan = n->channels->v[i];
+        log_info("auto joining channel %s", chan);
+        irc_join(n->irc, chan);
+    }
+
+    return error_success;
+}
+
 error_t network_connect(network_t *n, struct event_base *base)
 {
     struct addrinfo *info = NULL, *ai = NULL, hint = {0};
@@ -308,6 +345,10 @@ error_t network_connect(network_t *n, struct event_base *base)
      */
     child_run_all(n);
 
+    /* join all channels
+     */
+    network_join(n);
+
     return error_success;
 }
 
@@ -330,33 +371,60 @@ error_t network_add_plugin(network_t *n, plugin_info_t *p)
 
 error_t network_add_env(plugin_info_t *p, char *env)
 {
-    char **tmp = reallocarray(p->env, p->envc+1, sizeof(char*));
+    strv_add(p->env, env);
+    free(env);
+    return error_success;
+}
 
-    if (tmp == NULL) {
-        return error_memory;
-    }
-
-    p->env = tmp;
-    p->env[p->envc] = env;
-    ++p->envc;
-
+error_t network_add_channel(network_t *n, char *chan)
+{
+    strv_add(n->channels, chan);
+    free(chan);
     return error_success;
 }
 
 error_t network_add_arg(plugin_info_t *p, char *arg)
 {
-    size_t add = (p->argc == 0 ? 3 : 1);
-    char **tmp = reallocarray(p->argv, p->argc + add, sizeof(char*));
+    strv_add(p->arg, arg);
+    free(arg);
+    return error_success;
+}
 
-    if (tmp == NULL) {
-        return error_memory;
+plugin_info_t *plugin_info_new(void)
+{
+    plugin_info_t *n = calloc(1, sizeof(plugin_info_t));
+
+    if (n == NULL) {
+        return NULL;
     }
 
-    p->argv = tmp;
+    n->arg = strv_new();
+    if (n->arg == NULL) {
+        plugin_info_free(n);
+        return NULL;
+    }
 
-    p->argc += add;
-    p->argv[p->argc-2] = arg;
-    p->argv[p->argc-1] = NULL;
+    strv_add(n->arg, NULL);
 
-    return error_success;
+    n->env = strv_new();
+    if (n->env == NULL) {
+        plugin_info_free(n);
+        return NULL;
+    }
+
+    return n;
+}
+
+void plugin_info_free(plugin_info_t *v)
+{
+    if (v == NULL) {
+        return;
+    }
+
+    strv_free(v->arg);
+    strv_free(v->env);
+
+    v->arg = v->env = NULL;
+
+    free(v);
 }

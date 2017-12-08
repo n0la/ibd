@@ -15,6 +15,7 @@ SET(HEADERS
   "irc/queue.h"
   "irc/strbuf.h"
   "irc/util.h"
+  "irc/strv.h"
   )
 
 SET(SOURCES
@@ -23,6 +24,7 @@ SET(SOURCES
   "strbuf.c"
   "queue.c"
   "util.c"
+  "strv.c"
   )
 
 ADD_DEFINITIONS("-Wall -Werror")

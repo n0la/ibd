@@ -52,7 +52,7 @@ char *strip_quote(char *s)
     int integer;
 }
 
-%token <integer>       TOK_NETWORK TOK_PAR_OPEN TOK_PAR_CLOSE TOK_EQUAL TOK_SEMI_COLON TOK_PLUGIN TOK_FILENAME TOK_OPTION TOK_ARGS TOK_ENV TOK_COMMENT
+%token <integer>       TOK_NETWORK TOK_PAR_OPEN TOK_PAR_CLOSE TOK_EQUAL TOK_SEMI_COLON TOK_PLUGIN TOK_FILENAME TOK_OPTION TOK_ARGS TOK_ENV TOK_COMMENT TOK_CHANNEL
 %token <string>        TOK_STRING
 %token <string>        TOK_QUOTED_STRING
 
@@ -112,7 +112,7 @@ plugin_vars:
 plugin_filename:TOK_FILENAME TOK_QUOTED_STRING TOK_SEMI_COLON
                 {
                     if (p == NULL) {
-                        p = calloc(1, sizeof(plugin_info_t));
+                        p = plugin_info_new();
                         if (p == NULL) {
                             yyerror("memory allocation");
                         }
@@ -128,7 +128,7 @@ plugin_env:     TOK_ENV TOK_QUOTED_STRING TOK_QUOTED_STRING TOK_SEMI_COLON
                     char *env = NULL;
 
                     if (p == NULL) {
-                        p = calloc(1, sizeof(plugin_info_t));
+                        p = plugin_info_new();
                         if (p == NULL) {
                             yyerror("memory allocation");
                         }
@@ -153,7 +153,7 @@ strings:
         |       strings TOK_QUOTED_STRING
                 {
                     if (p == NULL) {
-                        p = calloc(1, sizeof(plugin_info_t));
+                        p = plugin_info_new();
                         if (p == NULL) {
                             yyerror("memory allocation");
                         }
@@ -163,9 +163,16 @@ strings:
                 }
         ;
 
+channel:        TOK_CHANNEL TOK_QUOTED_STRING TOK_SEMI_COLON
+                {
+                    network_add_channel(n, strip_quote($2));
+                }
+        ;
+
 network_vars:
         |       network_vars network_var
         |       network_vars plugin
+        |       network_vars channel
         ;
 
 %%

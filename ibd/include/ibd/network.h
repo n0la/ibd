@@ -5,6 +5,7 @@
 
 #include <irc/irc.h>
 #include <irc/strbuf.h>
+#include <irc/strv.h>
 
 #include <event2/event.h>
 
@@ -23,11 +24,8 @@ typedef struct {
     struct event *err_ev;
     pid_t pid;
 
-    char **argv;
-    size_t argc;
-
-    char **env;
-    size_t envc;
+    strv_t arg;
+    strv_t env;
 } plugin_info_t;
 
 typedef struct {
@@ -52,9 +50,15 @@ typedef struct {
     plugin_info_t **plugin;
     size_t pluginlen;
 
+    strv_t channels;
+
 } network_t;
 
+plugin_info_t *plugin_info_new(void);
+void plugin_info_free(plugin_info_t *v);
+
 network_t * network_new(void);
+void network_free(network_t *n);
 error_t network_set(network_t *n, char const *k, char const *v);
 
 error_t network_disconnect(network_t *n);
@@ -63,5 +67,6 @@ error_t network_connect(network_t *n, struct event_base *base);
 error_t network_add_plugin(network_t *n, plugin_info_t *p);
 error_t network_add_arg(plugin_info_t *p, char *arg);
 error_t network_add_env(plugin_info_t *p, char *env);
+error_t network_add_channel(network_t *n, char *chan);
 
 #endif

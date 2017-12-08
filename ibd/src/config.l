@@ -16,6 +16,7 @@ filename return TOK_FILENAME;
 option return TOK_OPTION;
 args return TOK_ARGS;
 env return TOK_ENV;
+channel return TOK_CHANNEL;
 
 \{ return TOK_PAR_OPEN;
 \} return TOK_PAR_CLOSE;

@@ -54,9 +54,12 @@ static int child_main(plugin_info_t *p, int in[2], int out[2], int err[2])
 {
     size_t i = 0;
 
-    for (i = 0; i < p->envc; i++) {
-        putenv(p->env[i]);
+    for (i = 0; i < p->env->vlen; i++) {
+        putenv(p->env->v[i]);
     }
+
+    p->arg->v[0] = strdup(p->name);
+    strv_add(p->arg, NULL);
 
     p->in = in[1];
     p->out = out[1];
@@ -72,18 +75,7 @@ static int child_main(plugin_info_t *p, int in[2], int out[2], int err[2])
     dup2(p->out, STDOUT_FILENO);
     dup2(p->err, STDERR_FILENO);
 
-    if (p->argv == NULL) {
-        p->argv = calloc(2, sizeof(char*));
-        if (p->argv == NULL) {
-            log_error("memory exhaustion");
-            return error_memory;
-        }
-        p->argc = 2;
-    }
-
-    p->argv[0] = p->filename;
-
-    if (execv(p->filename, p->argv) < 0) {
+    if (execv(p->filename, p->arg->v) < 0) {
         log_error("failed to execute: %s: %s", p->filename, strerror(errno));
         return 3;
     }
