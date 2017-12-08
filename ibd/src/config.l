@@ -2,6 +2,7 @@
 #include "config.y.h"
 
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma GCC diagnostic ignored "-Wno-pragmas"
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wunneeded-internal-declaration"
 #pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
