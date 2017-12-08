@@ -3,6 +3,9 @@
 
 #include <irc/irc.h>
 
+#include <pwd.h>
+#include <grp.h>
+
 #include <event2/event.h>
 #include <tls.h>
 
@@ -73,17 +76,48 @@ int parse_args(int ac, char **av)
     return 0;
 }
 
+int drop_privileges(void)
+{
+    struct passwd *p = NULL;
+    struct group *g = NULL;
+
+    p = getpwnam(config.user);
+    g = getgrnam(config.group);
+
+    if (p == NULL) {
+        log_error("no such username: %s", config.user);
+        return 3;
+    }
+
+    if (g == NULL) {
+        log_error("no such groupname: %s", config.group);
+        return 3;
+    }
+
+    if (setuid(p->pw_uid) != 0) {
+        log_error("failed to change user: %s", strerror(errno));
+        return 3;
+    }
+
+    if (setgid(g->gr_gid) != 0) {
+        log_error("failed to change group id: %s", strerror(errno));
+        return 3;
+    }
+
+    if (setuid(0) == 0) {
+        log_error("WHAT");
+        return 3;
+    }
+
+    return 0;
+}
+
 int main(int ac, char **av)
 {
     struct event_base *base = NULL;
     bool done = false;
     int i = 0;
     int ret = 0;
-
-    if (getuid() == 0) {
-        fprintf(stderr, "starting ibd as root is a bad idea\n");
-        return 3;
-    }
 
     openlog("ibd", LOG_NDELAY, LOG_USER);
 
@@ -97,6 +131,11 @@ int main(int ac, char **av)
         if (config_parse(configfile)) {
             return 3;
         }
+    }
+
+    if (getuid() == 0 && (config.user == NULL || config.group == NULL)) {
+        fprintf(stderr, "starting ibd as root is a bad idea\n");
+        return 3;
     }
 
     if (!foreground) {
@@ -137,6 +176,11 @@ int main(int ac, char **av)
         signal(SIGTERM, sig);
         signal(SIGINT, sig);
         signal(SIGPIPE, SIG_IGN);
+    }
+
+    ret = drop_privileges();
+    if (ret > 0) {
+        return ret;
     }
 
     base = event_base_new();

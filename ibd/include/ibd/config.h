@@ -9,6 +9,9 @@
 typedef struct {
     network_t **network;
     size_t networklen;
+
+    char *user;
+    char *group;
 } config_t;
 
 extern config_t config;

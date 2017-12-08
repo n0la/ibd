@@ -52,7 +52,7 @@ char *strip_quote(char *s)
     int integer;
 }
 
-%token <integer>       TOK_NETWORK TOK_PAR_OPEN TOK_PAR_CLOSE TOK_EQUAL TOK_SEMI_COLON TOK_PLUGIN TOK_FILENAME TOK_OPTION TOK_ARGS TOK_ENV TOK_COMMENT TOK_CHANNEL
+%token <integer>       TOK_NETWORK TOK_PAR_OPEN TOK_PAR_CLOSE TOK_EQUAL TOK_SEMI_COLON TOK_PLUGIN TOK_FILENAME TOK_OPTION TOK_ARGS TOK_ENV TOK_COMMENT TOK_CHANNEL TOK_USER TOK_GROUP
 %token <string>        TOK_STRING
 %token <string>        TOK_QUOTED_STRING
 
@@ -62,9 +62,25 @@ grammar: /* empty */
         |       grammar network
         |       grammar plugin
         |       grammar comment
+        |       grammar user
+        |       grammar group
                 ;
 
 comment:        TOK_COMMENT '\n'
+        ;
+
+user:           TOK_USER TOK_EQUAL TOK_QUOTED_STRING TOK_SEMI_COLON
+                {
+                    free(config.user);
+                    config.user = strip_quote($3);
+                }
+        ;
+
+group:          TOK_GROUP TOK_EQUAL TOK_QUOTED_STRING TOK_SEMI_COLON
+                {
+                    free(config.group);
+                    config.group = strip_quote($3);
+                }
         ;
 
 network:        TOK_NETWORK TOK_QUOTED_STRING TOK_PAR_OPEN network_vars TOK_PAR_CLOSE TOK_SEMI_COLON

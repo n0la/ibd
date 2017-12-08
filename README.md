@@ -33,13 +33,29 @@ to networks, and launching child processes. It reads a
 configuration file from ``/etc/ibd.conf``. Run it as
 root at your own peril. Just kidding, I would never allow
 you to run this heap of dung
-[as root](https://github.com/n0la/ibd/blob/master/ibd/src/ibd.c#L84).
+[as root](https://github.com/n0la/ibd/blob/master/ibd/src/ibd.c#L137).
 
 ## ibd.conf
 
 This configuration file configures ``ibd`` to do its magic.
 You need at least one ``network`` block to make the daemon
 do anything. It is read per default from ``/etc/ibd.conf``.
+
+The following configuration options are allowed:
+
+ Option         | Meaning
+ ---------------|---------------------------------------
+ user           | POSIX user to ``setuid()`` to
+ group          | POSIX group to ``setgid()`` to
+
+```
+user = "_ibd";
+group = "_ibd";
+
+network "freenode" {
+   # ...
+};
+```
 
 ### Network block
 

@@ -17,6 +17,8 @@ option return TOK_OPTION;
 args return TOK_ARGS;
 env return TOK_ENV;
 channel return TOK_CHANNEL;
+user return TOK_USER;
+group return TOK_GROUP;
 
 \{ return TOK_PAR_OPEN;
 \} return TOK_PAR_CLOSE;
