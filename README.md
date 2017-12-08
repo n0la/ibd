@@ -135,7 +135,7 @@ Core of the library is the ``irc_t`` state machine, and the ``irc_message_t``
 structure to parse and handle IRC messages. See the ``nickserv`` plugin
 for a good example on how to use this library:
 
-```
+```C
 int main(int ac, char **av)
 {
     irc_message_t m;
