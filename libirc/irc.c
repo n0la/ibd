@@ -72,7 +72,7 @@ irc_t irc_new(void)
 
     i = calloc(1, sizeof(struct irc_));
     if (!i) {
-        NULL;
+        return NULL;
     }
 
     i->buf = strbuf_new();
