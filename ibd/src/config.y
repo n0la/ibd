@@ -11,9 +11,13 @@ extern int yylex(void);
 static plugin_info_t *p = NULL;
 static network_t *n = NULL;
 
+extern int yylineno;
+extern char const *yytext;
+
 void yyerror(char const *str)
 {
-    log_error("failed to read configuration file: %s", str);
+    log_error("failed to read configuration file: %d: %s: %s",
+              yylineno, yytext, str);
 }
 
 int yywrap(void)
@@ -48,7 +52,7 @@ char *strip_quote(char *s)
     int integer;
 }
 
-%token <integer>       TOK_NETWORK TOK_PAR_OPEN TOK_PAR_CLOSE TOK_EQUAL TOK_SEMI_COLON TOK_PLUGIN TOK_FILENAME TOK_OPTION TOK_ARGS TOK_ENV
+%token <integer>       TOK_NETWORK TOK_PAR_OPEN TOK_PAR_CLOSE TOK_EQUAL TOK_SEMI_COLON TOK_PLUGIN TOK_FILENAME TOK_OPTION TOK_ARGS TOK_ENV TOK_COMMENT
 %token <string>        TOK_STRING
 %token <string>        TOK_QUOTED_STRING
 
@@ -57,7 +61,11 @@ char *strip_quote(char *s)
 grammar: /* empty */
         |       grammar network
         |       grammar plugin
+        |       grammar comment
                 ;
+
+comment:        TOK_COMMENT '\n'
+        ;
 
 network:        TOK_NETWORK TOK_QUOTED_STRING TOK_PAR_OPEN network_vars TOK_PAR_CLOSE TOK_SEMI_COLON
                 {

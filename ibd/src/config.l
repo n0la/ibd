@@ -4,6 +4,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wunneeded-internal-declaration"
+#pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
 
 %}
 
@@ -20,11 +21,24 @@ env return TOK_ENV;
 \} return TOK_PAR_CLOSE;
 \= return TOK_EQUAL;
 ; return TOK_SEMI_COLON;
+# {
+    int c;
+
+    while ((c = input()) != '\n' && c != EOF)
+        ;
+
+    if (c == EOF || c == '\n') {
+        unput(c);
+    }
+
+    ++yylineno;
+}
 
 [a-z]+ {
     yylval.string = strdup(yytext);
     return TOK_STRING;
 }
+
 
 \"(\\.|[^"\\])*\" {
     yylval.string = strdup(yytext);
