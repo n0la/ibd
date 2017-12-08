@@ -94,13 +94,13 @@ int drop_privileges(void)
         return 3;
     }
 
-    if (setuid(p->pw_uid) != 0) {
-        log_error("failed to change user: %s", strerror(errno));
+    if (setgid(g->gr_gid) != 0) {
+        log_error("failed to change group id: %s", strerror(errno));
         return 3;
     }
 
-    if (setgid(g->gr_gid) != 0) {
-        log_error("failed to change group id: %s", strerror(errno));
+    if (setuid(p->pw_uid) != 0) {
+        log_error("failed to change user: %s", strerror(errno));
         return 3;
     }
 
